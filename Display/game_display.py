@@ -122,7 +122,6 @@ class BoardDisplay:
         self.pieces_map:dict[str, Image.Image] = self.load_pieces(pieces_map) 
         self.board_image:Image.Image = self._create_board_image()
         self.display_image(self.board_image)
-        self._create_buttons()
 
     def load_pieces(self, piece_map:dict[str, str]) -> dict[str, Image.Image]:
         images:dict[str, Image.Image] = {}
@@ -157,13 +156,7 @@ class BoardDisplay:
 
         self.display_image(self.board_image)
 
-    def _create_buttons(self):
-        button_frame = tk.Frame(self.root)
-        button_frame.pack(pady=20)
-
-        backward_button = tk.Button(button_frame, text="New", command=lambda: self._dispatch(Event.NEW))
-        backward_button.grid(row=1, column=1)
-
+    
     def _dispatch(self, event:Event, data: dict[str, Any] | None = None): 
         if data is None:
             data = {}
@@ -194,20 +187,17 @@ class BoardDisplay:
         self.root.update_idletasks()
         self.root.update()
 
-    def sleep(self):
+    
         ...
 
-    def cleanup(self):
-        ...
+# if __name__ == "__main__":
+#     root = tk.Tk()
+#     root.title("Chess")
+#     board_display:BoardDisplay = BoardDisplay(root, 768, 1024)
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Chess")
-    board_display:BoardDisplay = BoardDisplay(root, 768, 1024)
+#     board_display.draw(STARTING_FEN)
 
-    board_display.draw(STARTING_FEN)
-
-    root.mainloop() 
+#     root.mainloop() 
 
     
 # Highlight selected square

@@ -2,6 +2,7 @@ import tkinter as tk
 from PIL import Image
 
 from Display import BoardDisplay
+from Input import TkButtonInputHandler
 
 ENGINE:str = r"C:\temp\stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 768
@@ -13,6 +14,7 @@ def main():
     root = tk.Tk()
     root.title("Chess")
     board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT)
+    buttons:TkButtonInputHandler = TkButtonInputHandler(root)
     
 
     root.mainloop() 
