@@ -1,28 +1,42 @@
 import tkinter as tk
-from PIL import Image
+# from PIL import Image
+from typing import Any
+
+import chess
+from chess import Board
 
 from Display import BoardDisplay
-from Input import TkButtonInputHandler
+from Input import TkButtonInputHandler, Event, EventHandler
+from GameManager import STARTING_FEN, IMAGE_MAP
 
 ENGINE:str = r"C:\temp\stockfish-windows-x86-64-avx2.exe"
-SCREEN_WIDTH = 768
-SCREEN_HEIGHT = 1024
+SCREEN_WIDTH = 480
+SCREEN_HEIGHT = 800
+# SCREEN_WIDTH = 1024
+# SCREEN_HEIGHT = 768
+
+class MyBoard(Board):
+    def __init__(self, fen:str|None=STARTING_FEN):
+        super().__init__(fen)
+        
+
+root = tk.Tk()
+root.title("Chess")
+board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT, IMAGE_MAP)
+buttons:TkButtonInputHandler = TkButtonInputHandler(root)
+
+
 
 # engine = chess.engine.SimpleEngine.popen_uci(ENGINE)
 
-def main():
-    root = tk.Tk()
-    root.title("Chess")
-    board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT)
-    buttons:TkButtonInputHandler = TkButtonInputHandler(root)
-    
+def new_game(event:Event, data:dict[str, Any]):
+    board_display.draw(STARTING_FEN)
 
-    root.mainloop() 
+def main():       
+    buttons.register_handler(EventHandler(Event.NEW, new_game))   
 
-    # pygame.init()
-    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    # pygame.display.set_caption("Chess Game with Stockfish")
-
+    root.mainloop()
+        
     # # Replace with your engine path
     # # engine_path = "D:/project_learn/Python/stockfish-windows-x86-64-avx2.exe"
     # # game = Game(engine_path)

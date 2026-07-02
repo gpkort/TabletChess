@@ -15,7 +15,7 @@ class Event(Enum):
 @dataclass(frozen=True)
 class EventHandler:
     event_type: Event
-    handler: Callable[[dict[str, Any]], None]
+    handler: Callable[[Event, dict[str, Any]], None]
     blocking: bool = False
 
 class EventDispatcher(ABC):
@@ -64,6 +64,6 @@ class EventDispatcher(ABC):
         
         for handler in reversed(list(current_observers.values())):
             if handler.event_type == event:
-                handler.handler(data)
+                handler.handler(event, data)
                 if handler.blocking:
                     break

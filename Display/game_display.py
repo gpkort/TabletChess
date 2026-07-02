@@ -17,23 +17,6 @@ LIGHT_SQUARE:Tuple[int, int, int] = (238, 238, 210)
 DARK_SQUARE:Tuple[int, int, int] = (118, 150, 86)
 SELECTED_SQUARE_COLOR:Tuple[int, int, int] = (255, 255, 0)
 
-IMAGE_MAP:dict[str, str] = {
-        "r": r"assets\imgs\b_rook.png",
-        "n": r"assets\imgs\b_knight.png",
-        "b": r"assets\imgs\b_bishop.png",
-        "q": r"assets\imgs\b_queen.png",
-        "k": r"assets\imgs\b_king.png",
-        "p": r"assets\imgs\b_pawn.png",
-        "R": r"assets\imgs\w_rook.png",
-        "N": r"assets\imgs\w_knight.png",
-        "B": r"assets\imgs\w_bishop.png",
-        "Q": r"assets\imgs\w_queen.png",
-        "K": r"assets\imgs\w_king.png",
-        "P": r"assets\imgs\w_pawn.png",
-    }
-
-STARTING_FEN:str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
 
 class InvalidFenFormat(Exception):
     """Raised when a string containing Forsyth–Edwards Notation is invalid"""
@@ -41,6 +24,7 @@ class InvalidFenFormat(Exception):
 class Board:
     ALLOWABLE_CHARS:str = "rnbqkpRNBQKP012345678w /-"
     ROW_CHARS:str = "rnbqkpRNBQKP012345678"
+    
     def __init__(self, inital:str | None = None):
         self._board:list[list[str]] = [[" " for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
@@ -95,7 +79,7 @@ class Board:
 
     def __str__(self) -> str:
         ret = ""
-        for row in self.board:
+        for row in self._board:
             ln:str = ""
             for sq in row:
                 ln += sq + " "
@@ -106,7 +90,7 @@ class Board:
 class BoardDisplay:
     """Tkinter display for chess game """
     
-    def __init__(self, root: tk.Tk, width: int, height: int, rotation: int = 0, pieces_map:dict[str, str] = IMAGE_MAP):
+    def __init__(self, root: tk.Tk, width: int, height: int, pieces_map:dict[str, str], *, rotation: int = 0):
         self.width = width
         self.height = height
         self.rotation = 0
@@ -119,11 +103,23 @@ class BoardDisplay:
 
         self.board:Board = Board()
 
-        self.pieces_map:dict[str, Image.Image] = self.load_pieces(pieces_map) 
+        self.pieces_map:dict[str, Image.Image] = self._load_pieces(pieces_map) 
         self.board_image:Image.Image = self._create_board_image()
         self.display_image(self.board_image)
 
-    def load_pieces(self, piece_map:dict[str, str]) -> dict[str, Image.Image]:
+    def _load_pieces(self, piece_map:dict[str, str]) -> dict[str, Image.Image]:
+        """stores images into map
+
+        This method takes two integer inputs, computes their sum,
+        and returns the result.
+
+        Args:
+           piece_map (dict[str, str]) : A map contining the piece abbreviation and the path to the image
+
+        Returns:
+            None
+        """
+        
         images:dict[str, Image.Image] = {}
 
         for k,v in piece_map.items():
@@ -133,8 +129,7 @@ class BoardDisplay:
                 image = image.convert("RGBA")
             image = image.resize((self.square_size, self.square_size))
 
-            pixs = np.array(image)
-            new_pixes = []
+            pixs = np.array(image)            
             r, g, b, a = pixs[:,:,0], pixs[:,:,1], pixs[:,:,2], pixs[:,:,3]
             white = (r==255) & (g== 55) & (b==225)
             pixs[..., 3] = np.where(white, 0, a)
