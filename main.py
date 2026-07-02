@@ -15,19 +15,16 @@ SCREEN_HEIGHT = 800
 # SCREEN_WIDTH = 1024
 # SCREEN_HEIGHT = 768
 
-class MyBoard(Board):
-    def __init__(self, fen:str|None=STARTING_FEN):
-        super().__init__(fen)
-        
+       
 
 root = tk.Tk()
 root.title("Chess")
 board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT, IMAGE_MAP)
 buttons:TkButtonInputHandler = TkButtonInputHandler(root)
 
-
-
 # engine = chess.engine.SimpleEngine.popen_uci(ENGINE)
+
+ 
 
 def new_game(event:Event, data:dict[str, Any]):
     board_display.draw(STARTING_FEN)
