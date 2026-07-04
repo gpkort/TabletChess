@@ -7,7 +7,7 @@ from typing import Any
 import threading
 
 class Event(Enum):
-    FORWARD = 1
+    PIECE_CLICK = 1
     BACKWARD = 2
     UP = 3
     DOWN = 4

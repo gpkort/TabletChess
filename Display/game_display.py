@@ -27,14 +27,72 @@ ROW_CHARS:str = "rnbqkpRNBQKP012345678"
 
 class InvalidFenFormat(Exception):
     """Raised when a string containing Forsyth–Edwards Notation is invalid"""
+class InvalidBoardFormat(Exception):
+    """Raised when a string containing Forsyth–Edwards Notation is invalid"""
 
-@dataclass
-class PieceInfo :
-    current_agebraic: str = ""
-    tag:str = ""
-    img:ImageTk.PhotoImage | None = None
-
-
+class SquareInfo:
+    def __init__(self, 
+                 x:int, 
+                 y:int, 
+                 square_side:int,
+                 id:int = -1,
+                 image:ImageTk.PhotoImage | None = None,
+                 selected:bool = False):
+        
+        self._x = x
+        self._y = y
+        self._square_side = square_side
+        self._image:ImageTk.PhotoImage | None = image
+        self._id = id
+        self._selected:bool = selected
+    
+    @property
+    def x(self)->int:
+        return self._x
+    @property
+    def y(self)->int:
+        return self._y
+    @property
+    def square_side(self)->int:
+        return self._square_side
+    @property
+    def image(self) -> ImageTk.PhotoImage | None:
+        return self._image
+    @property
+    def id(self) -> int:
+        return self._id   #type: ignore 
+    @id.setter
+    def id(self, value:int):
+        self._id = value
+    @property
+    def selected(self) -> bool:
+        return self.selected
+    @selected.setter
+    def selected(self, value):
+        self.selected = value        
+        
+    def set_image(self, img:ImageTk.PhotoImage):
+        self.id = -1
+        self._image = img
+    
+    def place(self, id:int, img:ImageTk.PhotoImage):
+        self._id = int
+        self._image = img
+        
+    def move(self)->Tuple[int, ImageTk.PhotoImage|None]:
+        img = self._image
+        id = self._id
+        self._id = -1
+        self._image = None
+        return (id, img) # type: ignore
+    
+    def kill(self):
+        self._id = -1
+        self._image = None
+    
+    def is_hit(self, x:int, y:int)-> bool:
+        return (self._x <= x <= self._x + self.square_side) and (self._y <= y <= self._y + self.square_side)
+    
 def validate_fen(fen:str):
     if not all(c in ALLOWABLE_CHARS for c in fen):
         raise InvalidFenFormat("Contains unallowed characters")
@@ -46,7 +104,7 @@ def validate_fen(fen:str):
         raise InvalidFenFormat(f"Does not information for all 8 rows {fen.split(" ")[0]}")
     
     for row in rows:
-        if not any(c not in ROW_CHARS for c in fen):
+        if any(c not in ROW_CHARS for c in row):
             raise InvalidFenFormat(f"row: {row} contains invalid chars for piece placement")
         row_len = 0
         for p in row:
@@ -57,27 +115,6 @@ def validate_fen(fen:str):
         if row_len != 8:
             raise InvalidFenFormat(f"Does row does not contain all information for 8 squares {row}")
 
-# https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation#
-def parse_fen(fen:str) -> list[list[str]]: 
-    validate_fen(fen)
-    board:list[list[str]] = [[] for _ in range(BOARD_SIZE)]
-
-    #Board only cares about piece placement
-    pieces = fen.split(" ")[0] 
-
-    rows = pieces.split("/")
-    if len(rows) != 8:
-        raise Exception("Invalid FEN fomat")
-    
-    for i, row in enumerate(rows):
-        for p in row:
-            if p.isdigit():
-                board[i].extend([" " for _ in range(int(p) + 1)])
-            else:
-                board[i].append(p) 
-
-    return board
-
 def get_row_col(alg:str) -> Tuple[int, int] | None:
     lt:list[str] = [chr(i) for i in range(96, 105)]
     nu:list[str] = [str(i) for i in range(1, 9)]
@@ -85,8 +122,17 @@ def get_row_col(alg:str) -> Tuple[int, int] | None:
         return (int(alg[1]), ord(alg[0])-96)
     
 def get_algebraic(col:int, row:int)->str | None:
-    if (1 <= row <= 8) and (1 <= col <= 8):
-        return chr(96 + col) + str(row)
+    """
+    get square algebraic designation
+
+    Args:
+        col (int): Zero based col between 0 and 7 inclusive
+        row (int): Zero based row between 0 and 7 inclusive
+    Returns:
+        str | None: ex a1, b4, etc or None row or col aren't valid
+    """
+    if (0 <= row <= 7) and (0 <= col <= 7):
+        return chr(97 + col) + str(row + 1)
 
 class BoardDisplay:
     """Tkinter display for chess game """
@@ -106,19 +152,16 @@ class BoardDisplay:
                 
         self.root: tk.Tk = root        
         self.canvas = tk.Canvas(self.root, width=self.width, height=self.width) #make it square
-        self.canvas.pack()
-        self.background_img:ImageTk.PhotoImage | None = None  # Keep reference to PhotoImage to prevent garbage collection
-
-        self.board:list[list[PieceInfo]] = [[ PieceInfo() for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+        self.canvas.pack(fill="both", expand=True)
+        # self.canvas.bind(self.TKINTER_LEFT_CLICK, self.canvas_click)
+        
+        self.board:dict[str, SquareInfo] = {}
+        self.background_img:ImageTk.PhotoImage | None = None  
         self.image_map:dict[str, ImageTk.PhotoImage] = self._load_pieces(pieces_map) 
-        self.board_image:ImageTk.PhotoImage = self._create_board_image()
-        self.display_image(self.board_image)
-
+        self._initialize()
+        
     def _load_pieces(self, pieces_map:dict[str, str]) -> dict[str, ImageTk.PhotoImage]:
         """stores images into map
-
-        This method takes two integer inputs, computes their sum,
-        and returns the result.
 
         Args:
            piece_map (dict[str, str]) : A map contining the piece abbreviation and the path to the image
@@ -145,62 +188,122 @@ class BoardDisplay:
         return images
 
     def draw(self, fen:str):
-        board = parse_fen(fen)
-        found_B, found_R, found_N = False, False, False
-        found_b, found_r, found_n = False, False, False
+        self._parse_fen(fen)      
+        
+        for square in self.board.values():
+            square.id = self.canvas.create_image(square.x + 2, square.y + 2, anchor="nw", image=square.image)        
 
-        for i, row in enumerate(board):
-            for j, col in enumerate(row):  
-                pi:PieceInfo = PieceInfo()
+    def canvas_click(self, event):
+        print(f"x = {event.x}; y = {event.y}")
+        for key, square in self.board.items():
+            if square.is_hit(event.x, event.y):
+                print(f"{key} was hit")
+    
+    def validate_board(self):
+        missing_keys:list[str] = []
+        for l in range(97, 105):
+            for i in range(1, 9):
+                alg:str = chr(l) + str(i)
+                print("TEST")
+                if alg not in list(self.board.keys()):
+                    missing_keys.append(alg)
+        
+        if any(v is None for v in self.board.values()):            
+            raise InvalidBoardFormat("Board contains unintialized values.") 
+           
+        if len(missing_keys) > 0:
+            err:str = ""
+            for mk in missing_keys:
+                err = f"{mk}, "
                 
-                ac:str | None = get_algebraic(j+1, i+1)
-                img:ImageTk.PhotoImage | None = self.image_map.get(col, None)
+                raise InvalidBoardFormat(f"Board is missing keys: {err}") 
+        return True
+    
+    def _parse_fen(self, fen:str):
+        validate_fen(fen)
+        self.validate_board()
+        
+        for val in self.board.values():
+            val.kill()
+        
+        #Board only cares about piece placement
+        pieces = fen.split(" ")[0] 
+        rows = pieces.split("/")
 
-                if ac and img:
-                    pi.current_agebraic = ac
-                    pi.tag = col + "_" + ac
-                    pi.img = img
-
-                    x = j*self.square_size + 2, 
-                    y = i*self.square_size + 2
-                    self.canvas.create_image(x, y, anchor="nw", image=pi.img, tags=pi.tag)
-                    self.canvas.tag_bind(pi.tag, "<Button-1>", self._tkinter_click)
-
-                    self.board[i][j] = pi
-
-    def _tkinter_click(self, event):
-        print(event)
+        def set_val(row:int, col:int, val:ImageTk.PhotoImage):
+            key:str | None = get_algebraic(row, col)
+            if key:
+                if self.board.get(key) is not None:
+                    self.board[key].set_image(val)
+                    
+        count:int = 0
+            
+        for i, row in enumerate(rows):
+            col_idx:int = 0
+            
+            for col in row:
+                if col_idx > 7:
+                    raise Exception("Column mis-count, too high!") # pylint: disable=broad-exception-raised
+                
+                if col.isdigit():
+                    for _ in range(int(col)):
+                        col_idx += 1
+                else:                    
+                    set_val(i, col_idx, self.image_map[col])
+                    col_idx += 1
+            
+            if col_idx != 8:
+                raise Exception(f"Column mis-count, {col_idx} too low!") # pylint: disable=broad-exception-raised
+            count += col_idx
+            
+        if count != 64:
+            raise Exception("Missing maps") # pylint: disable=broad-exception-raised    
     
     def _dispatch(self, event:Event, data: dict[str, Any] | None = None): 
         if data is None:
             data = {}
 
-        print("dispatch")
+        print("dispatch")    
+        
+    def _initialize(self):
+        """
+        Initializes self.board_map and creates a background image
 
-    def _create_board_image(self) -> ImageTk.PhotoImage:
+        Returns:
+           ImageTk.PhotoImage: background image
+           
+        Raises:
+            Exception if self.board_map was initialized with 64 values
+        """
+        
         dim:int = self.square_size * 8
         background:Image.Image = Image.new('RGBA', (dim, dim))
         draw:ImageDraw.ImageDraw = ImageDraw.Draw(background)
+        self.board = {}
 
         for row in range(8):
             for col in range(8):
+                key:str | None = get_algebraic(row, col)
                 color = LIGHT_SQUARE if (row + col) % 2 == 0 else DARK_SQUARE
                 top_x:int = col * self.square_size
                 top_y:int = row * self.square_size
-                bot_x: int = top_x + + self.square_size
-                bot_y: int = top_y + + self.square_size
-
+                bot_x: int = top_x + self.square_size
+                bot_y: int = top_y + self.square_size
                 draw.rectangle([(top_x, top_y),(bot_x, bot_y)], color)
                 
-        return ImageTk.PhotoImage(background)
+                if key:
+                    self.board[key] = SquareInfo(top_x + 2, top_y + 2, self.square_size-4, self.square_size-4)
+                    
+        if len(self.board) != 64:
+            raise Exception("Failed to Initialize board")
+        self.background_img = ImageTk.PhotoImage(background)
+        self.display_image(self.background_img)
 
     def display_image(self, img: ImageTk.PhotoImage, x_pos:int=0, y_pos:int=0):
         self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=img)
         self.root.update_idletasks()
-        self.root.update()
-
-    
-        ...
+        self.root.update()   
+        
 
 # if __name__ == "__main__":
 #     root = tk.Tk()
