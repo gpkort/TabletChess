@@ -27,10 +27,10 @@ buttons:TkButtonInputHandler = TkButtonInputHandler(root)
  
 
 def new_game(event:Event, data:dict[str, Any]):
-    board_display.draw(STARTING_FEN)
+    board_display.new_game()
 
-def main():       
-    buttons.register_handler(EventHandler(Event.NEW, new_game))   
+def main():
+    buttons.register_handler(EventHandler(Event.NEW, new_game))
 
     root.mainloop()
         

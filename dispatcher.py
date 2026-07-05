@@ -69,7 +69,7 @@ class EventDispatcher(ABC):
 
         with self.lock:
             current_observers = self.event_handlers.copy()
-        
+
         for handler in reversed(list(current_observers.values())):
             if handler.event_type == event:
                 handler.handler(data)

@@ -10,6 +10,7 @@ class Event(Enum):
     QUIT_GAME = 2
     QUIT = 3
     PUZZLES = 4
+    SQUARE_CLICK = 5
     UNKNOWN = 99
 
 @dataclass(frozen=True)

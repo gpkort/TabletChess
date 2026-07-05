@@ -5,6 +5,14 @@ from GameManager import STARTING_FEN, IMAGE_MAP
 
 TEST:str = "rnbqkbnr/pp1ppppp/2p5/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1"
 
+LIGHT_SQUARE:Tuple[int, int, int] = (238, 238, 210)
+DARK_SQUARE:Tuple[int, int, int] = (118, 150, 86)
+SELECTED_SQUARE:Tuple[int, int, int] = (255, 255, 0)
+
+LIGHT_SQUARE_COLOR = f"#{LIGHT_SQUARE[0]:X}{LIGHT_SQUARE[1]:X}{LIGHT_SQUARE[2]:X}"
+DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:X}{DARK_SQUARE[1]:X}{DARK_SQUARE[2]:X}"
+SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:X}{SELECTED_SQUARE[1]:X}{SELECTED_SQUARE[2]:X}"
+
 
 class ClassA:
     def __init__(self, name:str="", age:int=0):
@@ -89,10 +97,7 @@ if __name__ == "__main__":
     #         alg:str = chr(l) + str(i)
     #         print(alg)
     
-    for row in range(8):
-        for col in range(8):
-            key:str | None = get_algebraic(col, row)
-            print(key)
+    print(LIGHT_SQUARE_COLOR)
     
     
            
