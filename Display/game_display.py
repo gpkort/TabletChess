@@ -1,6 +1,7 @@
 import tkinter as tk
 from typing import Any, Tuple, Callable
 from PIL import Image, ImageTk
+import chess
 from chess import Board
 from GameManager import STARTING_FEN
 
@@ -147,7 +148,7 @@ class BoardDisplay(EventDispatcher):
     def __init__(self, root: tk.Tk,
                  width: int,
                  height: int,
-                 pieces_map:dict[str, str], *,
+                 pieces_map:dict[str, str], *,                 
                  initial_setup:str | None = None,
                  rotation: int = 0):
 
@@ -195,16 +196,30 @@ class BoardDisplay(EventDispatcher):
 
         return images
 
-    def dispatchButton(self, name:str):
-        print(f"Name: {name}")
+    def dispatchButton(self, name:str):        
         super()._dispatch(DisplayEvent.SQUARE_CLICK, {"piece":name})
+        print(f"Name: {name}")
+        piece:chess.Piece | None = self.board.piece_at(chess.parse_square(name))
+        if piece:
+            print(piece.symbol)
 
     def new_game(self):
         self.board.reset()
-        self.draw(STARTING_FEN)
+        for key, val in self.board_display.items():
+            val.kill()
+            piece:chess.Piece | None = self.board.piece_at(chess.parse_square(key))
+            if piece:
+                print(f"{key} = {piece.symbol()}, id = {val.image_id}")
+                sym:str = piece.symbol()                
+                self.board_display[key].set_image(self.image_map[sym])      
+            
         
-    def draw(self, fen:str):
-        self._parse_fen(fen)
+
+
+        self.draw()
+        
+    def draw(self):
+        #self._parse_fen(fen)
 
         for square in self.board_display.values():
             if square.image:
@@ -229,11 +244,8 @@ class BoardDisplay(EventDispatcher):
                 raise InvalidBoardFormat(f"Board is missing keys: {err}") 
         return True
     
-    def _parse_fen(self, fen:str):
-        self._initialize()
-        validate_fen(fen)
-        self.validate_board()
-        
+    def _parse_fen(self, fen:str):        
+        validate_fen(fen)        
         for val in self.board_display.values():
             val.kill()
         
@@ -253,13 +265,11 @@ class BoardDisplay(EventDispatcher):
             col_idx:int = 0
             
             for col in row:
-                if col_idx > 7:
-                    raise Exception("Column mis-count, too high!") # pylint: disable=broad-exception-raised
-                
+                                
                 if col.isdigit():
                     for _ in range(int(col)):
                         col_idx += 1
-                else:                    
+                else:                                    
                     set_val(i, col_idx, self.image_map[col])
                     col_idx += 1
             
@@ -285,13 +295,14 @@ class BoardDisplay(EventDispatcher):
         """
         
         self.board_display = {}
-        lt:int = ord('a')
-        for row in range(8):
-            for col in range(8):
-                color:str = LIGHT_SQUARE_COLOR if (row + col) % 2 == 0 else DARK_SQUARE_COLOR
-                top_x:int = col * self.square_size
-                top_y:int = row * self.square_size
-                name:str = chr(lt + row) + str(col + 1)
+        for rank in range(BOARD_SIZE):
+            for file in range(BOARD_SIZE):
+                color:str = LIGHT_SQUARE_COLOR if (rank + file) % 2 == 0 else DARK_SQUARE_COLOR
+                top_x:int = file * self.square_size
+                top_y:int = rank * self.square_size
+                
+                name:str = chess.square_name(chess.square(file, rank)) 
+                print(f"{name} = ({top_x}, {top_y})")               
                 button = tk.Button(self.canvas, 
                                    background=color,
                                    width=self.square_size, 

@@ -2,6 +2,7 @@ from typing import Tuple
 
 
 from GameManager import STARTING_FEN, IMAGE_MAP
+import chess
 
 TEST:str = "rnbqkbnr/pp1ppppp/2p5/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -92,12 +93,25 @@ def print_board(board:dict[str, str]):
 if __name__ == "__main__":
     print("start")
     
-    # for l in range(97, 105):
-    #     for i in range(1, 9):
-    #         alg:str = chr(l) + str(i)
-    #         print(alg)
-    
-    print(LIGHT_SQUARE_COLOR)
+    rnum = -1
+    # fnum = 0
+    ch:str = ""
+    for rank in range(8):
+        for file in range(8):        
+            sq:chess.Square = chess.square(file, rank)
+            print(f"{rank },{file},  {chess.square_name(sq)}")
+
+        
+        
+        # if fnum == 0:
+        #     rnum += 1
+        #     print(ch)
+        #     ch = ""
+        
+        # ch += chr(97 + fnum ) + str(rnum + 1) + ", "
+        # fnum = i % 8
+        
+
     
     
            
