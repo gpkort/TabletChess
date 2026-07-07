@@ -186,9 +186,6 @@ class BoardDisplay(EventDispatcher):
     def dispatchButton(self, event:tk.Event):
         square:chess.Square | None = self.get_square(event.x, event.y)
         
-        # super()._dispatch(DisplayEvent.SQUARE_CLICK, {"piece":name})
-        # print(f"Square is {name}")
-
         if square is not None and not self.board.is_game_over():
             piece:chess.Piece | None = self.board.piece_at(square)
             if piece:
