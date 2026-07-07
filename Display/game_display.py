@@ -2,7 +2,7 @@ import tkinter as tk
 from typing import Any, Tuple, Callable
 from PIL import Image, ImageTk
 import chess
-from chess import Board
+from chess import Board, engine
 from GameManager import STARTING_FEN
 
 import numpy as np
@@ -110,12 +110,15 @@ class SquareInfo:
             self._circ_id = -1
     
     def show_image(self):
-        if self._image_id == -1:
-            # pylint: disable=pointless-statement
-            self._image_id = self._canvas.create_image(self.x + 2,
-                                                    self.y + 2,
-                                                    anchor=tk.NW,
-                                                    image=self._image)
+        if self._image_id != -1:
+            self._canvas.delete(self._image_id)
+            self._image_id = -1
+
+        # pylint: disable=pointless-statement
+        self._image_id = self._canvas.create_image(self.x + 2,
+                                                self.y + 2,
+                                                anchor=tk.NW,
+                                                image=self._image)
 
     def set_image(self, img:ImageTk.PhotoImage, show:bool = False):
         self._image = img
@@ -123,9 +126,15 @@ class SquareInfo:
         if show:
             self.show_image()
     
-    def kill(self):
-        self._image_id = -1
+    def kill(self)->ImageTk.PhotoImage | None:
+        if self._image_id != -1:
+            self._canvas.delete(self._image_id)
+            self._image_id = -1
+
+        tempImage:ImageTk.PhotoImage | None = self._image
         self._image = None
+
+        return tempImage
 
 class BoardDisplay(EventDispatcher):
     """Tkinter display for chess game """
@@ -134,7 +143,11 @@ class BoardDisplay(EventDispatcher):
     def __init__(self, root: tk.Tk,
                  width: int,
                  height: int,
-                 pieces_map:dict[str, str], *,
+                 pieces_map:dict[str, str],
+                 engine: engine.SimpleEngine,
+                 *,
+                 is_single_player:bool = True,
+                 single_player_is_white:bool = True,
                  initial_setup:str | None = None,
                  rotation: int = 0):
 
@@ -143,15 +156,19 @@ class BoardDisplay(EventDispatcher):
         self.height = height
         self.rotation = 0
         self.square_size:int = self.width // BOARD_SIZE
+        self.is_single_player:bool = is_single_player
+        self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
 
         self.root: tk.Tk = root
         self.canvas = tk.Canvas(self.root, width=self.width, height=self.width) #make it square
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Button-1>", self.dispatchButton)
 
+        self.engine = engine
         self.board:Board = Board()
+        self.selected_square:chess.Square|None = None
 
-        self.board_display:dict[str, SquareInfo] = {}
+        self.board_display:dict[chess.Square, SquareInfo] = {}
         self.background_img:ImageTk.PhotoImage | None = None  
         self.image_map:dict[str, ImageTk.PhotoImage] = self._load_pieces(pieces_map) 
         self._initialize()
@@ -185,51 +202,100 @@ class BoardDisplay(EventDispatcher):
 
     def dispatchButton(self, event:tk.Event):
         square:chess.Square | None = self.get_square(event.x, event.y)
-        
-        if square is not None and not self.board.is_game_over():
-            piece:chess.Piece | None = self.board.piece_at(square)
-            if piece:
-                if self.board.turn == piece.color:
-                    self.clear_board_shapes()
-                    name:str = chess.square_name(square)
-                    self.board_display[name].selected = True
-                    moves:list[chess.Move] = self.get_legal_moves(square)
-                    for m in moves:
-                        msq:chess.Square = m.to_square
-                        print(f"to square {chess.square_name(msq)}")
-                        self.board_display[chess.square_name(msq)].legal = True
+        if square is None:
+            return
+
+        self.handle_square_selection(square)
 
     def new_game(self):
         self.board.reset()
+        self.update_board_display()        
+    
+    def handle_square_selection(self, square:chess.Square):
+        if self.board.is_game_over():
+            return
+        
+        if self.selected_square is None:
+            piece:chess.Piece | None = self.board.piece_at(square)
+            if piece is None or piece.color != self.board.turn:
+                return
+            self.display_legal_moves(square, piece)
+            self.set_selected_square(square)
+        else:
+            if self.selected_square == square:
+                self.clear_board_squares()
+            else:
+                piece:chess.Piece | None = self.board.piece_at(self.selected_square)
+                if piece is None or piece.color != self.board.turn:
+                    return
+                moves:list[chess.Move] = self.get_legal_moves(self.selected_square)
+                for m in moves:
+                    if m.to_square == square:
+                        self.move_piece(self.selected_square, square)
+                        self.update_board_display()
+
+    def update_board_display(self):
+        # for key, val in self.board_display.items():
+            
+        # self.update_root_display
+
         for key, val in self.board_display.items():
             val.kill()
-            piece:chess.Piece | None = self.board.piece_at(chess.parse_square(key))
+            val.legal = False
+            val.selected = False
+
+            piece:chess.Piece | None = self.board.piece_at(key)
             if piece:
                 sym:str = piece.symbol()
                 self.board_display[key].set_image(self.image_map[sym], True)
-        # self.draw()
 
-    # def draw(self):
-    #     for square in self.board_display.values():
-    #         if square.image:
-    #             # canvas.create_image(0, 0, anchor=tk.NW, image=tk_image)
-    #             self.canvas.create_image(square.x + 2, square.y + 2, anchor=tk.NW, image=square.image)
-    #             # square.button.config(image=square.image)
+        self.selected_square = None
+        self.update_root_display
+
+    def display_legal_moves(self, square:chess.Square, piece:chess.Piece):        
+        self.clear_board_squares(selected=False)                
+        moves:list[chess.Move] = self.get_legal_moves(square)
+
+        for m in moves:
+            self.board_display[m.to_square].legal = True
+
+        self.update_root_display()
+
+    def move_piece(self, from_square:chess.Square, to_square:chess.Square)->bool:
+        move = chess.Move(from_square, to_square)
+        if move in self.board.legal_moves:
+            self.board.push(move)
+            return True
+        return False
+
+    def set_selected_square(self, square:chess.Square):
+        if(self.selected_square == square):
+            return
+        
+        self.board_display[square].selected = True
+        self.selected_square = square
+        self.update_root_display()
 
     def get_legal_moves(self, square:chess.Square)-> list[chess.Move]:
         moves:list[chess.Move] = [m for m in self.board.legal_moves if m.from_square == square ]
-        print(moves)
+        
         return moves
 
-    def clear_board_shapes(self):
+    def clear_board_squares(self, *, legal:bool=True, selected:bool=True):
         for sq in self.board_display.values():
-            sq.selected = False
-            sq.legal = False
+            if selected:
+                sq.selected = False
+            if legal:
+                sq.legal = False
+        if selected:
+            self.selected_square = None
+
+        self.update_root_display()
     
     def get_square(self, x:int, y:int)->chess.Square|None:
-        for val in self.board_display.values():
+        for k, val in self.board_display.items():
             if val.x <= x <= val.x + self.square_size and val.y <= y <= val.y + self.square_size:
-                return chess.parse_square(val.name)
+                return k
     
     def _dispatch(self, event:DisplayEvent, data: dict[str, Any] | None = None): # pylint: disable=unused-argument
         ...
@@ -254,8 +320,9 @@ class BoardDisplay(EventDispatcher):
                 y1:int = y0 + self.square_size
 
                 name:str = chess.square_name(chess.square(7 - file, 7 - rank))
+                square:chess.Square = chess.parse_square(name)
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=color)
-                self.board_display[name] = SquareInfo(self.canvas, 
+                self.board_display[square] = SquareInfo(self.canvas, 
                                                       name, 
                                                       x0, 
                                                       y0, 
@@ -264,27 +331,9 @@ class BoardDisplay(EventDispatcher):
 
     def display_image(self, img: ImageTk.PhotoImage, x_pos:int=0, y_pos:int=0):
         self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=img)
+        self.update_display
+
+    def update_root_display(self):
         self.root.update_idletasks()
-        self.root.update()   
-        
+        self.root.update()  
 
-# if __name__ == "__main__":
-#     root = tk.Tk()
-#     root.title("Chess")
-#     board_display:BoardDisplay = BoardDisplay(root, 768, 1024, IMAGE_MAP)
-
-#     board_display.draw(STARTING_FEN)
-
-#     root.mainloop() 
-
-    
-# Highlight selected square
-# if self.selected_square is not None and (row, col) == self.selected_square:
-#     pygame.draw.rect(screen, SELECTED_SQUARE_COLOR, (col *
-#                         SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE), 3)
-
-# # Draw pieces
-# piece = str(self.board_display.piece_at(chess.square(col, 7 - row)))
-# if piece != "None":
-#     image = PIECE_IMAGES[piece]
-#     screen.blit(image, (col * SQUARE_SIZE, row * SQUARE_SIZE))

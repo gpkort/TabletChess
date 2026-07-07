@@ -3,13 +3,13 @@ import tkinter as tk
 from typing import Any
 
 import chess
-from chess import Board
+from chess import Board, engine
 
 from Display import BoardDisplay
 from Input import TkButtonInputHandler, Event, EventHandler
 from GameManager import STARTING_FEN, IMAGE_MAP
 
-ENGINE:str = r"C:\temp\stockfish-windows-x86-64-avx2.exe"
+ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 800
 # SCREEN_WIDTH = 1024
@@ -19,7 +19,7 @@ SCREEN_HEIGHT = 800
 
 root = tk.Tk()
 root.title("Chess")
-board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT, IMAGE_MAP)
+board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT, IMAGE_MAP, engine.SimpleEngine.popen_uci(ENGINE))
 buttons:TkButtonInputHandler = TkButtonInputHandler(root)
 
 # engine = chess.engine.SimpleEngine.popen_uci(ENGINE)
@@ -37,7 +37,7 @@ def main():
     # # Replace with your engine path
     # # engine_path = "D:/project_learn/Python/stockfish-windows-x86-64-avx2.exe"
     # # game = Game(engine_path)
-    # ENGINE:str = r"C:\temp\stockfish-windows-x86-64-avx2.exe"
+    # 
     # # game = Game(ENGINE)
 
     # running = True
