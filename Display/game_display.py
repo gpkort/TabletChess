@@ -32,33 +32,35 @@ class InvalidBoardFormat(Exception):
     """Raised when a string containing Forsyth–Edwards Notation is invalid"""
 
 class SquareInfo:
+    YELLOW:str = "#FFFF00"
+    GREEN:str = "#785DB7"
     def __init__(self,
+                 canvas:tk.Canvas,
                  name:str,
                  x:int,
                  y:int,
-                 button:tk.Button,
-                 win_id:int,
-                 callback: Callable[[str], None],
+                 size:int,
                  *,
-                 img_id:int = -1,
-                 image:ImageTk.PhotoImage | None = None,
-                 selected:bool = False):
-        
+                 image:ImageTk.PhotoImage | None = None):
+
+        self._canvas:tk.Canvas = canvas
         self._x:int = x
         self._y:int = y
+        self._size = size
         self._image:ImageTk.PhotoImage | None = image
-        self._image_id:int = img_id
-        self._selected:bool = selected
-        self.button:tk.Button = button
-        self.name:str = name
-        self.callback = callback
-        
-        self._window_id = win_id
-        self.button.bind("<Button-1>", func=self.click_event)
+        self._name:str = name
+        self._image_id:int = -1
+        self._rect_id:int = -1
+        self._circ_id:int = -1
 
-    def click_event(self, event:tk.Event):  # pylint: disable=unused-argument
-        self.callback(self.name)
-
+    @property
+    def name(self):
+        """ 
+            gets algebraic name of square
+        Returns:
+            str: name
+        """
+        return self._name
     @property
     def x(self)->int:
         return self._x
@@ -69,77 +71,61 @@ class SquareInfo:
     def image(self) -> ImageTk.PhotoImage | None:
         return self._image
     @property
-    def image_id(self) -> int:
-        return self._image_id   #type: ignore 
-    @image_id.setter
-    def image_id(self, value:int):
-        self._id = value
-    @property
     def selected(self) -> bool:
-        return self.selected
+        return self._rect_id != -1
     @selected.setter
-    def selected(self, value):
-        self.selected = value  
-           
-    def set_image(self, img:ImageTk.PhotoImage, id:int=-1):
-        self._image_id = id
-        self._image = img
+    def selected(self, value:bool):
+        if value == self._rect_id != -1:
+            return
+
+        if value:
+            self._rect_id = self._canvas.create_rectangle(self._x,
+                                          self._y,
+                                          self._x + self._size,
+                                          self._y + self._size,
+                                          width=2,
+                                          outline=self.YELLOW
+                                          )
+        else:
+            self._canvas.delete(self._rect_id)
+            self._rect_id = -1
+
+
+    @property
+    def legal(self)-> bool:
+        return self._circ_id != -1    
+    @legal.setter
+    def legal(self, value:bool):
+        if value == self._circ_id != -1:
+            return
+        if value:
+            self._circ_id = self._canvas.create_oval(self._x + 4,
+                                          self._y + 4,
+                                          self._x + self._size - 8,
+                                          self._y + self._size - 8,
+                                          width=0.0,
+                                          fill=self.GREEN)
+        else:
+            self._canvas.delete(self._circ_id)
+            self._circ_id = -1
     
-    def place(self, id:int, img:ImageTk.PhotoImage):
-        self._image_id = id
+    def show_image(self):
+        if self._image_id == -1:
+            # pylint: disable=pointless-statement
+            self._image_id = self._canvas.create_image(self.x + 2,
+                                                    self.y + 2,
+                                                    anchor=tk.NW,
+                                                    image=self._image)
+
+    def set_image(self, img:ImageTk.PhotoImage, show:bool = False):
         self._image = img
-        
-    def move(self)->Tuple[int, ImageTk.PhotoImage|None]:
-        img = self._image
-        id = self._id
         self._image_id = -1
-        self._image = None
-        return (id, img) # type: ignore
+        if show:
+            self.show_image()
     
     def kill(self):
-        self._id = -1
+        self._image_id = -1
         self._image = None
-    
-def validate_fen(fen:str):
-    if not all(c in ALLOWABLE_CHARS for c in fen):
-        raise InvalidFenFormat("Contains unallowed characters")
-    if fen.split(" ")[0] is None:
-        raise InvalidFenFormat("Does not contain row information")
-    
-    rows = (fen.split(" ")[0]).split("/")
-    if len(rows) != 8:
-        raise InvalidFenFormat(f"Does not information for all 8 rows {fen.split(" ")[0]}")
-    
-    for row in rows:
-        if any(c not in ROW_CHARS for c in row):
-            raise InvalidFenFormat(f"row: {row} contains invalid chars for piece placement")
-        row_len = 0
-        for p in row:
-            if p.isdigit():
-                row_len += int(p)
-            else:
-                row_len += 1
-        if row_len != 8:
-            raise InvalidFenFormat(f"Does row does not contain all information for 8 squares {row}")
-
-def get_row_col(alg:str) -> Tuple[int, int] | None:
-    lt:list[str] = [chr(i) for i in range(96, 105)]
-    nu:list[str] = [str(i) for i in range(1, 9)]
-    if len(alg) == 2 and (alg[0] in lt) and (alg[1] in nu):
-        return (int(alg[1]), ord(alg[0])-96)
-    
-def get_algebraic(col:int, row:int)->str | None:
-    """
-    get square algebraic designation
-
-    Args:
-        col (int): Zero based col between 0 and 7 inclusive
-        row (int): Zero based row between 0 and 7 inclusive
-    Returns:
-        str | None: ex a1, b4, etc or None row or col aren't valid
-    """
-    if (0 <= row <= 7) and (0 <= col <= 7):
-        return chr(97 + col) + str(row + 1)
 
 class BoardDisplay(EventDispatcher):
     """Tkinter display for chess game """
@@ -148,7 +134,7 @@ class BoardDisplay(EventDispatcher):
     def __init__(self, root: tk.Tk,
                  width: int,
                  height: int,
-                 pieces_map:dict[str, str], *,                 
+                 pieces_map:dict[str, str], *,
                  initial_setup:str | None = None,
                  rotation: int = 0):
 
@@ -157,13 +143,14 @@ class BoardDisplay(EventDispatcher):
         self.height = height
         self.rotation = 0
         self.square_size:int = self.width // BOARD_SIZE
-                
-        self.root: tk.Tk = root        
+
+        self.root: tk.Tk = root
         self.canvas = tk.Canvas(self.root, width=self.width, height=self.width) #make it square
         self.canvas.pack(fill="both", expand=True)
-        
+        self.canvas.bind("<Button-1>", self.dispatchButton)
+
         self.board:Board = Board()
-        
+
         self.board_display:dict[str, SquareInfo] = {}
         self.background_img:ImageTk.PhotoImage | None = None  
         self.image_map:dict[str, ImageTk.PhotoImage] = self._load_pieces(pieces_map) 
@@ -196,12 +183,24 @@ class BoardDisplay(EventDispatcher):
 
         return images
 
-    def dispatchButton(self, name:str):        
-        super()._dispatch(DisplayEvent.SQUARE_CLICK, {"piece":name})
-        print(f"Name: {name}")
-        piece:chess.Piece | None = self.board.piece_at(chess.parse_square(name))
-        if piece:
-            print(piece.symbol)
+    def dispatchButton(self, event:tk.Event):
+        square:chess.Square | None = self.get_square(event.x, event.y)
+        
+        # super()._dispatch(DisplayEvent.SQUARE_CLICK, {"piece":name})
+        # print(f"Square is {name}")
+
+        if square is not None and not self.board.is_game_over():
+            piece:chess.Piece | None = self.board.piece_at(square)
+            if piece:
+                if self.board.turn == piece.color:
+                    self.clear_board_shapes()
+                    name:str = chess.square_name(square)
+                    self.board_display[name].selected = True
+                    moves:list[chess.Move] = self.get_legal_moves(square)
+                    for m in moves:
+                        msq:chess.Square = m.to_square
+                        print(f"to square {chess.square_name(msq)}")
+                        self.board_display[chess.square_name(msq)].legal = True
 
     def new_game(self):
         self.board.reset()
@@ -209,77 +208,32 @@ class BoardDisplay(EventDispatcher):
             val.kill()
             piece:chess.Piece | None = self.board.piece_at(chess.parse_square(key))
             if piece:
-                print(f"{key} = {piece.symbol()}, id = {val.image_id}")
-                sym:str = piece.symbol()                
-                self.board_display[key].set_image(self.image_map[sym])      
-            
-        
+                sym:str = piece.symbol()
+                self.board_display[key].set_image(self.image_map[sym], True)
+        # self.draw()
 
+    # def draw(self):
+    #     for square in self.board_display.values():
+    #         if square.image:
+    #             # canvas.create_image(0, 0, anchor=tk.NW, image=tk_image)
+    #             self.canvas.create_image(square.x + 2, square.y + 2, anchor=tk.NW, image=square.image)
+    #             # square.button.config(image=square.image)
 
-        self.draw()
-        
-    def draw(self):
-        #self._parse_fen(fen)
+    def get_legal_moves(self, square:chess.Square)-> list[chess.Move]:
+        moves:list[chess.Move] = [m for m in self.board.legal_moves if m.from_square == square ]
+        print(moves)
+        return moves
 
-        for square in self.board_display.values():
-            if square.image:
-                square.button.config(image=square.image)
-                        
-    def validate_board(self):
-        missing_keys:list[str] = []
-        for l in range(97, 105):
-            for i in range(1, 9):
-                alg:str = chr(l) + str(i)
-                if alg not in list(self.board_display.keys()):
-                    missing_keys.append(alg)
-        
-        if any(v is None for v in self.board_display.values()):            
-            raise InvalidBoardFormat("Board contains unintialized values.") 
-           
-        if len(missing_keys) > 0:
-            err:str = ""
-            for mk in missing_keys:
-                err = f"{mk}, "
-                
-                raise InvalidBoardFormat(f"Board is missing keys: {err}") 
-        return True
+    def clear_board_shapes(self):
+        for sq in self.board_display.values():
+            sq.selected = False
+            sq.legal = False
     
-    def _parse_fen(self, fen:str):        
-        validate_fen(fen)        
+    def get_square(self, x:int, y:int)->chess.Square|None:
         for val in self.board_display.values():
-            val.kill()
-        
-        #Board only cares about piece placement
-        pieces = fen.split(" ")[0] 
-        rows = pieces.split("/")
-
-        def set_val(row:int, col:int, val:ImageTk.PhotoImage):
-            key:str | None = get_algebraic(row, col)
-            if key:
-                if self.board_display.get(key) is not None:
-                    self.board_display[key].set_image(val)
-                    
-        count:int = 0
-            
-        for i, row in enumerate(rows):
-            col_idx:int = 0
-            
-            for col in row:
-                                
-                if col.isdigit():
-                    for _ in range(int(col)):
-                        col_idx += 1
-                else:                                    
-                    set_val(i, col_idx, self.image_map[col])
-                    col_idx += 1
-            
-            if col_idx != 8:
-                raise Exception(f"Column mis-count, {col_idx} too low!") # pylint: disable=broad-exception-raised
-            count += col_idx
-            
-        if count != 64:
-            raise Exception("Missing maps") # pylint: disable=broad-exception-raised    
-
+            if val.x <= x <= val.x + self.square_size and val.y <= y <= val.y + self.square_size:
+                return chess.parse_square(val.name)
+    
     def _dispatch(self, event:DisplayEvent, data: dict[str, Any] | None = None): # pylint: disable=unused-argument
         ...
 
@@ -293,23 +247,23 @@ class BoardDisplay(EventDispatcher):
         Raises:
             Exception if self.board_display was initialized with 64 values
         """
-        
         self.board_display = {}
         for rank in range(BOARD_SIZE):
             for file in range(BOARD_SIZE):
                 color:str = LIGHT_SQUARE_COLOR if (rank + file) % 2 == 0 else DARK_SQUARE_COLOR
-                top_x:int = file * self.square_size
-                top_y:int = rank * self.square_size
-                
-                name:str = chess.square_name(chess.square(file, rank)) 
-                print(f"{name} = ({top_x}, {top_y})")               
-                button = tk.Button(self.canvas, 
-                                   background=color,
-                                   width=self.square_size, 
-                                   height=self.square_size)
-                window_id:int = self.canvas.create_window(top_x, top_y, anchor="nw", window=button)
-                self.board_display[name] = SquareInfo(name, top_x, top_y, button, window_id, self.dispatchButton)
-        
+                x0:int = file * self.square_size
+                y0:int = rank * self.square_size
+                x1:int = x0 + self.square_size
+                y1:int = y0 + self.square_size
+
+                name:str = chess.square_name(chess.square(7 - file, 7 - rank))
+                self.canvas.create_rectangle(x0, y0, x1, y1, fill=color)
+                self.board_display[name] = SquareInfo(self.canvas, 
+                                                      name, 
+                                                      x0, 
+                                                      y0, 
+                                                      self.square_size)
+
 
     def display_image(self, img: ImageTk.PhotoImage, x_pos:int=0, y_pos:int=0):
         self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=img)
