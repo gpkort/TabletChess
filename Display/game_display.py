@@ -1,14 +1,12 @@
 import tkinter as tk
-from typing import Any, Tuple, Callable
-from PIL import Image, ImageTk
+from typing import Any, Tuple
+from PIL import ImageTk
 import chess
 from chess import Board, engine
-from GameManager import STARTING_FEN
 
-import numpy as np
-
+from Display import SquareInfo, load_pieces
 from Input import Event as DisplayEvent, EventDispatcher
-SCREEN_WIDTH = SCREEN_HEIGHT = 512
+
 BOARD_SIZE = 8
 
 # Colors
@@ -31,174 +29,52 @@ class InvalidFenFormat(Exception):
 class InvalidBoardFormat(Exception):
     """Raised when a string containing Forsyth–Edwards Notation is invalid"""
 
-class SquareInfo:
-    YELLOW:str = "#FFFF00"
-    GREEN:str = "#785DB7"
-    def __init__(self,
-                 canvas:tk.Canvas,
-                 name:str,
-                 x:int,
-                 y:int,
-                 size:int,
-                 *,
-                 image:ImageTk.PhotoImage | None = None):
-
-        self._canvas:tk.Canvas = canvas
-        self._x:int = x
-        self._y:int = y
-        self._size = size
-        self._image:ImageTk.PhotoImage | None = image
-        self._name:str = name
-        self._image_id:int = -1
-        self._rect_id:int = -1
-        self._circ_id:int = -1
-
-    @property
-    def name(self):
-        """ 
-            gets algebraic name of square
-        Returns:
-            str: name
-        """
-        return self._name
-    @property
-    def x(self)->int:
-        return self._x
-    @property
-    def y(self)->int:
-        return self._y
-    @property
-    def image(self) -> ImageTk.PhotoImage | None:
-        return self._image
-    @property
-    def selected(self) -> bool:
-        return self._rect_id != -1
-    @selected.setter
-    def selected(self, value:bool):
-        if value == self._rect_id != -1:
-            return
-
-        if value:
-            self._rect_id = self._canvas.create_rectangle(self._x,
-                                          self._y,
-                                          self._x + self._size,
-                                          self._y + self._size,
-                                          width=2,
-                                          outline=self.YELLOW
-                                          )
-        else:
-            self._canvas.delete(self._rect_id)
-            self._rect_id = -1
-
-
-    @property
-    def legal(self)-> bool:
-        return self._circ_id != -1    
-    @legal.setter
-    def legal(self, value:bool):
-        if value == self._circ_id != -1:
-            return
-        if value:
-            self._circ_id = self._canvas.create_oval(self._x + 4,
-                                          self._y + 4,
-                                          self._x + self._size - 8,
-                                          self._y + self._size - 8,
-                                          width=0.0,
-                                          fill=self.GREEN)
-        else:
-            self._canvas.delete(self._circ_id)
-            self._circ_id = -1
-    
-    def show_image(self):
-        if self._image_id != -1:
-            self._canvas.delete(self._image_id)
-            self._image_id = -1
-
-        # pylint: disable=pointless-statement
-        self._image_id = self._canvas.create_image(self.x + 2,
-                                                self.y + 2,
-                                                anchor=tk.NW,
-                                                image=self._image)
-
-    def set_image(self, img:ImageTk.PhotoImage, show:bool = False):
-        self._image = img
-        self._image_id = -1
-        if show:
-            self.show_image()
-    
-    def kill(self)->ImageTk.PhotoImage | None:
-        if self._image_id != -1:
-            self._canvas.delete(self._image_id)
-            self._image_id = -1
-
-        tempImage:ImageTk.PhotoImage | None = self._image
-        self._image = None
-
-        return tempImage
-
 class BoardDisplay(EventDispatcher):
     """Tkinter display for chess game """
     TKINTER_LEFT_CLICK:str = "<Button-1>"
 
     def __init__(self, root: tk.Tk,
-                 width: int,
-                 height: int,
+                 width:int,
+                 height:int,
+                 board_size: int,
                  pieces_map:dict[str, str],
-                 engine: engine.SimpleEngine,
+                 chess_engine: engine.SimpleEngine,
                  *,
                  is_single_player:bool = True,
                  single_player_is_white:bool = True,
-                 initial_setup:str | None = None,
-                 rotation: int = 0):
+                 engine_skill_level:int = 0):
 
         super().__init__()
-        self.width = width
-        self.height = height
-        self.rotation = 0
-        self.square_size:int = self.width // BOARD_SIZE
+        
+        self.square_size:int = board_size // BOARD_SIZE
         self.is_single_player:bool = is_single_player
         self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
 
         self.root: tk.Tk = root
-        self.canvas = tk.Canvas(self.root, width=self.width, height=self.width) #make it square
+        self.canvas = tk.Canvas(self.root, width=width, height=height) #make it square
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Button-1>", self.dispatchButton)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        self.engine = engine
+        self.engine:engine.SimpleEngine = chess_engine
+        self.engine.configure({"Skill Level": engine_skill_level})
+        self.limit = engine.Limit(time=0.5)
         self.board:Board = Board()
         self.selected_square:chess.Square|None = None
 
         self.board_display:dict[chess.Square, SquareInfo] = {}
-        self.background_img:ImageTk.PhotoImage | None = None  
-        self.image_map:dict[str, ImageTk.PhotoImage] = self._load_pieces(pieces_map) 
+        self.image_map:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map) 
         self._initialize()
 
-    def _load_pieces(self, pieces_map:dict[str, str]) -> dict[str, ImageTk.PhotoImage]:
-        """stores images into map
+    def __del__(self):
+        try:
+            self.engine.quit()
+        except engine.EngineTerminatedError as e:
+            print(e)
 
-        Args:
-           piece_map (dict[str, str]) : A map contining the piece abbreviation and the path to the image
-
-        Returns:
-            None
-        """
-        
-        images:dict[str, ImageTk.PhotoImage] = {}
-
-        for k,v in pieces_map.items():
-            image = Image.open(v)
-
-            if image.mode != "RGBA":
-                image = image.convert("RGBA")
-            image = image.resize((self.square_size - 4, self.square_size - 4))
-
-            pixs = np.array(image)            
-            r, g, b, a = pixs[:,:,0], pixs[:,:,1], pixs[:,:,2], pixs[:,:,3]
-            white = (r==255) & (g== 55) & (b==225)
-            pixs[..., 3] = np.where(white, 0, a)
-            images[k] = ImageTk.PhotoImage(Image.fromarray(pixs))
-
-        return images
+    def on_closing(self):
+        self.engine.close()
+        self.root.destroy()
 
     def dispatchButton(self, event:tk.Event):
         square:chess.Square | None = self.get_square(event.x, event.y)
@@ -212,7 +88,7 @@ class BoardDisplay(EventDispatcher):
         self.update_board_display()        
     
     def handle_square_selection(self, square:chess.Square):
-        if self.board.is_game_over():
+        if self.board.is_game_over() or self.board.turn != self.player_color:
             return
         
         if self.selected_square is None:
@@ -231,9 +107,10 @@ class BoardDisplay(EventDispatcher):
                 moves:list[chess.Move] = self.get_legal_moves(self.selected_square)
                 for m in moves:
                     if m.to_square == square:
-                        self.move_piece(self.selected_square, square)
+                        self.move_piece(self.selected_square, square, True)
                         self.update_board_display()
-
+                        break
+ 
     def update_board_display(self):
         # for key, val in self.board_display.items():
             
@@ -261,10 +138,14 @@ class BoardDisplay(EventDispatcher):
 
         self.update_root_display()
 
-    def move_piece(self, from_square:chess.Square, to_square:chess.Square)->bool:
+    def move_piece(self, from_square:chess.Square, to_square:chess.Square, engine_move:bool = False)->bool:
         move = chess.Move(from_square, to_square)
         if move in self.board.legal_moves:
             self.board.push(move)
+            if engine_move:
+                pr:engine.PlayResult = self.engine.play(self.board, self.limit)
+                if pr.move:
+                    self.board.push(pr.move)
             return True
         return False
 
@@ -331,9 +212,36 @@ class BoardDisplay(EventDispatcher):
 
     def display_image(self, img: ImageTk.PhotoImage, x_pos:int=0, y_pos:int=0):
         self.canvas.create_image(x_pos, y_pos, anchor=tk.NW, image=img)
-        self.update_display
+        self.update_root_display()
 
     def update_root_display(self):
         self.root.update_idletasks()
         self.root.update()  
 
+import tkinter as tk
+
+# Initialize the main application window
+# root = tk.Tk()
+# root.title("Multiline Textbox on Canvas")
+# root.geometry("500x400")
+
+# # 1. Create the Canvas widget
+# canvas = tk.Canvas(root, width=500, height=400, bg="#e0e0e0")
+# canvas.pack(fill="both", expand=True)
+
+# # Draw a background shape on the canvas to show depth
+# canvas.create_rectangle(50, 50, 450, 350, fill="#ffffff", outline="#b0b0b0")
+
+# # 2. Create the multiline Text widget
+# # Note: 'height' is measured in lines of text, and 'width' is in characters
+# text_box = tk.Text(canvas, width=40, height=8, wrap="word", bd=2, relief="groove")
+
+# # (Optional) Pre-fill the textbox with some default text
+# text_box.insert("1.0", "Type your multiline content here...\nLine 2\nLine 3") #
+
+# # 3. Embed the Text widget into the Canvas
+# # The coordinates (250, 200) dictate the anchor point on the canvas
+# canvas.create_window(250, 200, window=text_box, anchor="center") #
+
+# # Run the Tkinter application loop
+# root.mainloop() #
