@@ -19,6 +19,7 @@ class SquareInfo:
         self._y:int = y
         self._size = size
         self._image:ImageTk.PhotoImage | None = image
+        self._move_image:ImageTk.PhotoImage | None = move_image
         self._name:str = name
         self._image_id:int = -1
         self._rect_id:int = -1
@@ -44,6 +45,12 @@ class SquareInfo:
         return self._image
     @property
     def selected(self) -> bool:
+        """
+        Is the square highlighted
+
+        Returns:
+            bool: highlighted
+        """
         return self._rect_id != -1
     @selected.setter
     def selected(self, value:bool):
@@ -63,7 +70,13 @@ class SquareInfo:
             self._rect_id = -1
     @property
     def legal(self)-> bool:
-        return self._circ_id != -1    
+        """
+        Is the square a legal square to land on
+
+        Returns:
+            bool: legal square
+        """
+        return self._circ_id != -1
     @legal.setter
     def legal(self, value:bool):
         if value == self._circ_id != -1:
@@ -78,12 +91,33 @@ class SquareInfo:
         else:
             self._canvas.delete(self._circ_id)
             self._circ_id = -1
-    
+
     @property
     def show_move(self)->bool:
+        """
+        property to show visual queue if square was involved in a move
+
+        Returns:
+            bool: is it showing
+        """
         return self._move_id != -1
+    @show_move.setter
+    def show_move(self, value:bool):
+        if value == self._move_id != -1:
+            return
+        if value:
+            self._image_id = self._canvas.create_image(self.x ,
+                                                self.y,
+                                                anchor=tk.NW,
+                                                image=self._image)
+        else:
+            self._canvas.delete(self._image_id)
+            self._image_id = -1
 
     def show_image(self):
+        """
+        display piece image if it's not being showed else do nothing
+        """
         if self._image_id != -1:
             self._canvas.delete(self._image_id)
             self._image_id = -1
@@ -95,12 +129,25 @@ class SquareInfo:
                                                 image=self._image)
 
     def set_image(self, img:ImageTk.PhotoImage, show:bool = False):
+        """
+        stores piece image reference
+
+        Args:
+            img (ImageTk.PhotoImage): image reference
+            show (bool, optional): if True, display image. Defaults to False.
+        """
         self._image = img
         self._image_id = -1
         if show:
             self.show_image()
-    
+
     def kill(self)->ImageTk.PhotoImage | None:
+        """
+        removes the piece image from the square
+
+        Returns:
+            ImageTk.PhotoImage | None: return piece image if one existed
+        """
         if self._image_id != -1:
             self._canvas.delete(self._image_id)
             self._image_id = -1
@@ -109,5 +156,12 @@ class SquareInfo:
         self._image = None
 
         return tempImage
-    
-    # def clear()
+
+    def clear(self):
+        """
+        Removes all visual cues        
+        """
+        self.kill()
+        self.show_move = False
+        self.legal = False
+        self.selected = False

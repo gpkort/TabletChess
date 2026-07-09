@@ -8,7 +8,7 @@ from GameManager import IMAGE_MAP
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
-SCREEN_HEIGHT = 800
+SCREEN_HEIGHT = 600
 # SCREEN_WIDTH = 1024
 # SCREEN_HEIGHT = 768
 
