@@ -20,15 +20,13 @@ board_display:BoardDisplay = BoardDisplay(root, SCREEN_WIDTH, SCREEN_HEIGHT, 480
                                           engine.SimpleEngine.popen_uci(ENGINE))
 buttons:TkButtonInputHandler = TkButtonInputHandler(root)
 
-def new_game(event:Event, data:dict[str, Any]):
+def new_game(_event:Event, _data:dict[str, Any]):
     board_display.new_game()
 
 def main():
     buttons.register_handler(EventHandler(Event.NEW, new_game))
 
     root.mainloop()
-        
-    
 
 if __name__ == "__main__":
     main()

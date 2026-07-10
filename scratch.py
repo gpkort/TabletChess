@@ -3,6 +3,7 @@ from typing import Tuple
 
 from GameManager import STARTING_FEN, IMAGE_MAP
 import chess
+from chess import Board
 
 TEST:str = "rnbqkbnr/pp1ppppp/2p5/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -13,6 +14,8 @@ SELECTED_SQUARE:Tuple[int, int, int] = (255, 255, 0)
 LIGHT_SQUARE_COLOR = f"#{LIGHT_SQUARE[0]:X}{LIGHT_SQUARE[1]:X}{LIGHT_SQUARE[2]:X}"
 DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:X}{DARK_SQUARE[1]:X}{DARK_SQUARE[2]:X}"
 SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:X}{SELECTED_SQUARE[1]:X}{SELECTED_SQUARE[2]:X}"
+
+SQUARE_SIZE:int = 8
 
 
 class ClassA:
@@ -92,26 +95,13 @@ def print_board(board:dict[str, str]):
 
 if __name__ == "__main__":
     print("start")
+    board = Board()
     
-    rnum = -1
-    # fnum = 0
-    ch:str = ""
-    for rank in range(8):
-        for file in range(8):        
-            sq:chess.Square = chess.square(file, rank)
-            print(f"{rank },{file},  {chess.square_name(sq)}")
-
-        
-        
-        # if fnum == 0:
-        #     rnum += 1
-        #     print(ch)
-        #     ch = ""
-        
-        # ch += chr(97 + fnum ) + str(rnum + 1) + ", "
-        # fnum = i % 8
-        
-
-    
-    
-           
+    for rank in range(SQUARE_SIZE):
+        row_str:str = ""
+        for file in range(SQUARE_SIZE):     #-1, -1, -1):
+            square = chess.square(file, 7-rank)
+            name:str = chess.square_name(square)
+            p:chess.Piece | None = board.piece_at(square)                # self.board.piece_map
+            row_str += f"{name} ({rank},{file}): {"X" if p is None else p.symbol()}, "
+        print(row_str)

@@ -3,7 +3,7 @@ from PIL import Image, ImageTk
 import numpy as np
 
 
-def create_transparent_image(size:int, color:Tuple[float,...] = (0, 255, 0, 128)) -> ImageTk.PhotoImage:
+def create_transparent_image(size:int, color:Tuple[float,...] = (0, 255, 0, 64)) -> ImageTk.PhotoImage:
     img = Image.new("RGBA", (size, size), color)
     return ImageTk.PhotoImage(img)
 

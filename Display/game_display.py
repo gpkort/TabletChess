@@ -52,6 +52,7 @@ class BoardDisplay():
         self.engine.configure({"Skill Level": engine_skill_level})
         self.limit = engine.Limit(time=0.5)
         self.board:Board = Board()
+        
         self.selected_square:chess.Square|None = None
         self.previous_square:chess.Square|None = None
         self.target_square:chess.Square|None = None
@@ -102,11 +103,12 @@ class BoardDisplay():
         Args:
             square (chess.Square): square that user clicked on.
         """
+                
         if self.board.is_game_over() or self.board.turn != self.player_color:
             return
 
         if self.selected_square is None:
-            piece:chess.Piece | None = self.board.piece_at(square)
+            piece:chess.Piece | None = self.board.piece_at(square)            
             if piece is None or piece.color != self.board.turn:
                 return
             self.legal_squares = self.get_legal_squares(square)
@@ -199,13 +201,13 @@ class BoardDisplay():
                 x1:int = x0 + self.square_size
                 y1:int = y0 + self.square_size
 
-                name:str = chess.square_name(chess.square(7 - file, 7 - rank))
-                square:chess.Square = chess.parse_square(name)
+                square:chess.Square = chess.square(file, 7-rank)
+                name:str = chess.square_name(square)
+                
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=color)
-                self.board_display[square] = SquareInfo(self.canvas, name, x0, y0, 
-                                                      self.square_size, 
+                self.board_display[square] = SquareInfo(self.canvas, name, x0, y0,
+                                                      self.square_size,
                                                       create_transparent_image(self.square_size))
-
 
     def update_root_display(self):
         """

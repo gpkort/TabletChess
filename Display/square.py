@@ -19,7 +19,7 @@ class SquareInfo:
         self._y:int = y
         self._size = size
         self._image:ImageTk.PhotoImage | None = image
-        self._move_image:ImageTk.PhotoImage | None = move_image
+        self._move_image:ImageTk.PhotoImage = move_image
         self._name:str = name
         self._image_id:int = -1
         self._rect_id:int = -1
@@ -106,13 +106,13 @@ class SquareInfo:
         if value == self._move_id != -1:
             return
         if value:
-            self._image_id = self._canvas.create_image(self.x ,
+            self._move_id = self._canvas.create_image(self.x ,
                                                 self.y,
                                                 anchor=tk.NW,
-                                                image=self._image)
+                                                image=self._move_image)
         else:
-            self._canvas.delete(self._image_id)
-            self._image_id = -1
+            self._canvas.delete(self._move_id)
+            self._move_id = -1
 
     def show_image(self):
         """
