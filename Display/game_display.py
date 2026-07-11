@@ -43,7 +43,8 @@ class BoardDisplay():
         self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
 
         self.root: tk.Tk = root
-        self.canvas = tk.Canvas(self.root, width=width, height=height) #make it square
+        self.canvas = tk.Canvas(self.root, width=width, height=height)
+        self.text_box:tk.Text | None = None
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind(self.TKINTER_LEFT_CLICK, self.left_mouse_click)
         self.root.protocol(self.WINDOW_CLOSE, self.on_closing)
@@ -60,7 +61,7 @@ class BoardDisplay():
 
         self.board_display:dict[chess.Square, SquareInfo] = {}
         self.image_map:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map, self.square_size)
-        self._initialize()
+        self._initialize(board_size, width)
 
     def __del__(self):
         try:
@@ -182,7 +183,7 @@ class BoardDisplay():
             if val.x <= x <= val.x + self.square_size and val.y <= y <= val.y + self.square_size:
                 return k
 
-    def _initialize(self):
+    def _initialize(self, board_size:int, width:int):
         """
         Initializes self.board_display_map and creates a background image
 
@@ -192,6 +193,10 @@ class BoardDisplay():
         Raises:
             Exception if self.board_display was initialized with 64 values
         """
+        self.text_box = tk.Text(self.canvas, 
+                                        width=58, height=8, 
+                                        wrap="word", bd=2, relief="groove")
+        self.canvas.create_window(5, board_size + 10, window=self.text_box, anchor="nw") 
         self.board_display = {}
         for rank in range(BOARD_SIZE):
             for file in range(BOARD_SIZE):
