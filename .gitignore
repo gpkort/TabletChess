@@ -3,3 +3,4 @@ __pycache__
 
 *.exe
 lichess_db_puzzle.csv
+*.db
