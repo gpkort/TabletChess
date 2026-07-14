@@ -17,7 +17,7 @@ CHUNK_SIZE = 200000
 
 def populate_themes(conn:Connection):
     cursor = conn.cursor()
-    cursor.execute("SELECT themes FROM Old_puzzles")
+    cursor.execute("SELECT themes FROM Old_puzzles;")
     ret:set[str] = set()
 
     rows = cursor.fetchall()
@@ -36,16 +36,38 @@ def populate_themes(conn:Connection):
 
     return ret
 
+def populate_map(conn:Connection):
+    cursor = conn.cursor()
+    theme_map:list[Tuple[int, int]] = []
+
+    cursor.execute("SELECT PID, themes FROM Old_puzzles;")
+    rows = cursor.fetchall()
+
+    for row in rows:        
+        pid:int = row[0]
+
+        if pid % 1000 == 0:
+            print(f"Row: {pid}")
+        themes:list[Tuple[str]] = [(t,) for t in str(row[1]).split(" ")]
+        for t in themes:
+            cursor.execute("SELECT TID  FROM Theme WHERE theme = ?;", t)
+            res = cursor.fetchall()
+            theme_map.append((res[0][0], pid))
+
+    cursor.executemany("INSERT INTO ThemeMap (ThemeID, PuzzleID) VALUES (?,?)", theme_map)
+
+
+
+    conn.commit()
+    cursor.close()
+
+    print(theme_map[:50])
 
 
 if __name__ == "__main__":
     print("start")
-    engine:Connection = connect(SQLITE_FILE)
-    populate_themes(engine)
-
-    themes:set[str] = populate_themes(engine)
-    print(themes)
-    # Theme
+    vals:list[int] = [1,2,3,4,5]
+    print(", ".join([str(i) for i in vals]))
         
     # for chunk_df in pd.read_csv(PUZZLES_CSV, chunksize=CHUNK_SIZE):
     #     chunk_df.to_csv(path.join("puzzles", f"puzzle_{str(i)}.csv"), index=False)

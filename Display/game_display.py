@@ -1,9 +1,12 @@
+from dataclasses import dataclass, field
+
 import tkinter as tk
 from typing import Tuple
 from PIL import ImageTk
 import chess
 from chess import Board, engine
 
+from Input import EventDispatcher, Event
 from .square import SquareInfo
 from .utility import load_pieces, create_transparent_image
 
@@ -20,63 +23,43 @@ LIGHT_SQUARE_COLOR = f"#{LIGHT_SQUARE[0]:x}{LIGHT_SQUARE[1]:x}{LIGHT_SQUARE[2]:x
 DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:x}{DARK_SQUARE[1]:x}{DARK_SQUARE[2]:x}"
 SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:x}{SELECTED_SQUARE[1]:x}{SELECTED_SQUARE[2]:X}"
 
-class BoardDisplay():
+@dataclass
+class DisplayInfo:
+    selected_square:chess.Square|None = None
+    previous_square:chess.Square|None = None
+    target_square:chess.Square|None = None
+    legal_squares:list[chess.Square] = field(default_factory=list)
+    piece_location:dict[chess.Square, str] = field(default_factory=dict)
+
+class BoardDisplay(EventDispatcher):
     """Tkinter display for chess game """
     TKINTER_LEFT_CLICK:str = "<Button-1>"
-    WINDOW_CLOSE:str = "WM_DELETE_WINDOW"
 
     def __init__(self, root: tk.Tk,
                  width:int,
                  height:int,
                  board_size: int,
-                 pieces_map:dict[str, str],
-                 chess_engine: engine.SimpleEngine,
-                 *,
-                 is_single_player:bool = True,
-                 single_player_is_white:bool = True,
-                 engine_skill_level:int = 0):
+                 pieces_map:dict[str, str]):
+                
 
         super().__init__()
         
         self.square_size:int = board_size // BOARD_SIZE
-        self.is_single_player:bool = is_single_player
-        self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
+        
 
         self.root: tk.Tk = root
         self.canvas = tk.Canvas(self.root, width=width, height=height)
         self.text_box:tk.Text | None = None
         self.canvas.pack(fill="both", expand=True)
-        self.canvas.bind(self.TKINTER_LEFT_CLICK, self.left_mouse_click)
-        self.root.protocol(self.WINDOW_CLOSE, self.on_closing)
-
-        self.engine:engine.SimpleEngine = chess_engine
-        self.engine.configure({"Skill Level": engine_skill_level})
-        self.limit = engine.Limit(time=0.5)
-        self.board:Board = Board()
+        self.canvas.bind(self.TKINTER_LEFT_CLICK, self._left_mouse_click)
         
-        self.selected_square:chess.Square|None = None
-        self.previous_square:chess.Square|None = None
-        self.target_square:chess.Square|None = None
-        self.legal_squares:list[chess.Square] = []
+        
 
         self.board_display:dict[chess.Square, SquareInfo] = {}
         self.image_map:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map, self.square_size)
         self._initialize(board_size, width)
 
-    def __del__(self):
-        try:
-            self.engine.quit()
-        except engine.EngineTerminatedError as e:
-            print(e)
-
-    def on_closing(self):
-        """
-        Callback from close root frame
-        """
-        self.engine.close()
-        self.root.destroy()
-
-    def left_mouse_click(self, event:tk.Event):
+    def _left_mouse_click(self, event:tk.Event):
         """
         user makes left click
 
@@ -84,59 +67,12 @@ class BoardDisplay():
             event (tk.Event): event containing x, y coordinates
         """
         square:chess.Square | None = self.get_square(event.x, event.y)
-        if square is None:
-            return
+        if square is not None:
+            self._dispatch(Event.SQUARE_CLICK, {"square": square})
 
-        self.handle_square_selection(square)
+        
 
-    def new_game(self):
-        """
-        Start a new game
-        """
-        self.board.reset()
-        self.update_board_display()        
-
-    def handle_square_selection(self, square:chess.Square):
-        """
-        Either select a piece or move a piece if it's your turn and you clicked a 
-        legal square
-
-        Args:
-            square (chess.Square): square that user clicked on.
-        """
-                
-        if self.board.is_game_over() or self.board.turn != self.player_color:
-            return
-
-        if self.selected_square is None:
-            piece:chess.Piece | None = self.board.piece_at(square)            
-            if piece is None or piece.color != self.board.turn:
-                return
-            self.legal_squares = self.get_legal_squares(square)
-            self.selected_square = square
-            self.previous_square = None
-            self.target_square = None
-        else:
-            if self.selected_square == square:
-                self.selected_square = None
-                self.previous_square = None
-                self.target_square = None
-            else:
-                piece:chess.Piece | None = self.board.piece_at(self.selected_square)
-                if piece is None or piece.color != self.board.turn:
-                    return
-                if square in self.legal_squares:
-                    self.board.push(chess.Move(self.selected_square, square))
-                    pr:engine.PlayResult = self.engine.play(self.board, self.limit)
-                    if pr.move:
-                        self.board.push(pr.move)
-                        self.previous_square = pr.move.from_square
-                        self.target_square = pr.move.to_square
-                    self.selected_square = None
-                    self.legal_squares.clear()
-        self.update_board_display()
-
-    def update_board_display(self):
+    def update_board_display(self, display_info:DisplayInfo):
         """
         Iterates through squares and updates visual
         representation
@@ -144,30 +80,22 @@ class BoardDisplay():
         for key, val in self.board_display.items():
             val.clear()
 
-            piece:chess.Piece | None = self.board.piece_at(key)
-            if piece:
-                sym:str = piece.symbol()
-                val.set_image(self.image_map[sym], True)
+        piece:str = display_info.piece_location.get(key, "") #type: ignore
+        if piece != "":
+            val.set_image(self.image_map[piece], True) #type: ignore
 
-        if self.selected_square:
-            self.board_display[self.selected_square].selected = True
-        if self.previous_square:
-            self.board_display[self.previous_square].show_move = True
-        if self.target_square:
-            self.board_display[self.target_square].show_move = True
-        for legal in self.legal_squares:
+        if display_info.selected_square:
+            self.board_display[display_info.selected_square].selected = True
+        if display_info.previous_square:
+            self.board_display[display_info.previous_square].show_move = True
+        if display_info.target_square:
+            self.board_display[display_info.target_square].show_move = True
+        for legal in display_info.legal_squares:
             self.board_display[legal].legal = True
 
         self.update_root_display()
 
-    def get_legal_squares(self, square:chess.Square)->list[chess.Square]:
-        """
-            return squares that can be leagally moved to
-        Args:
-            square (chess.Square): starting square
-        """
-        return [m.to_square for m in self.board.legal_moves if m.from_square == square]
-
+    
     def get_square(self, x:int, y:int)->chess.Square|None:
         """
         Gets the square whre mouse click occured
