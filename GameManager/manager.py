@@ -1,19 +1,22 @@
 from typing import Any
 
 import tkinter as tk
-from chess import engine, Square, Board
+from chess import (engine, 
+                   Square, 
+                   Board, 
+                   Piece)
 import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
-from Display import BoardDisplay
-from puzzler import Puzzle_Engine
+from Display import BoardDisplay, DisplayInfo
+# from .puzzler import Puzzle_Engine_DB
 
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
 
-class Chessmanager:
+class ChessManager:
     WINDOW_CLOSE:str = "WM_DELETE_WINDOW"
 
     def __init__(self, display_width:int, display_height, engine_path:str, board_size: int,
@@ -28,6 +31,9 @@ class Chessmanager:
         self.board_display:BoardDisplay = BoardDisplay(self.root, display_width, display_height, board_size, pieces_map)
         self.board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
         self.root.protocol(self.WINDOW_CLOSE, self.on_closing)
+        self.buttons:TkButtonInputHandler = TkButtonInputHandler(self.root)
+        self.buttons.register_handler(EventHandler(Event.NEW, self.button_handler))
+        self.buttons.register_handler(EventHandler(Event.PUZZLES, self.button_handler))
 
         self.engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
         self.engine.configure({"Skill Level": engine_skill_level})
@@ -40,7 +46,6 @@ class Chessmanager:
         self.previous_square:chess.Square|None = None
         self.target_square:chess.Square|None = None
         self.legal_squares:list[chess.Square] = []
-
         
         
     def __del__(self):
@@ -50,6 +55,10 @@ class Chessmanager:
         except engine.EngineTerminatedError as e:
             print(e)
 
+    def start(self):
+        self.root.mainloop()
+
+
     def on_closing(self):
         """
         Callback from close root frame
@@ -57,22 +66,14 @@ class Chessmanager:
         self.engine.close()
         self.root.destroy()
 
-    
-
-    def new_game(self):
+    def button_handler(self, event:Event, data:dict[str, Any]):
         """
-        Start a new game   
-        """
-        self.board.reset()
-        self.board_display.update_board_display()  
-
-    def get_legal_squares(self, square:Square)->list[Square]:
-        """
-            return squares that can be leagally moved to
-        Args:
-            square (chess.Square): starting square
-        """
-        return [m.to_square for m in self.board.legal_moves if m.from_square == square]
+        Handles button events
+        """ 
+        if event == Event.NEW:       
+            self.board_display.update_board_display(self.reset_game())
+        if event == Event.PUZZLES:       
+            self.handle_puzzle()
     
     def handle_square_selection(self, event:Event, data:dict[str, Any]):
         """
@@ -85,12 +86,14 @@ class Chessmanager:
                 
         if self.board.is_game_over() or self.board.turn != self.player_color:
             return
+        
+        square:Square = data["square"]
 
         if self.selected_square is None:
             piece:chess.Piece | None = self.board.piece_at(square)            
             if piece is None or piece.color != self.board.turn:
                 return
-            self.legal_squares = self.get_legal_squares(square)
+            self.legal_squares = [m.to_square for m in self.board.legal_moves if m.from_square == square]
             self.selected_square = square
             self.previous_square = None
             self.target_square = None
@@ -112,7 +115,42 @@ class Chessmanager:
                         self.target_square = pr.move.to_square
                     self.selected_square = None
                     self.legal_squares.clear()
-        self.update_board_display()
+        
+        
+        self.board_display.update_board_display(DisplayInfo(
+            self.selected_square,
+            self.previous_square,
+            self.target_square,
+            self.legal_squares,
+            self.get_piece_location()
+        ))
+
+    def handle_puzzle(self):
+        ...
+
+    def reset_game(self)->DisplayInfo:
+        self.board.reset()
+        self.selected_square = None
+        self.previous_square = None
+        self.target_square = None
+        self.legal_squares = []
+        return DisplayInfo(
+                        self.selected_square,
+                        self.previous_square,
+                        self.target_square,
+                        self.legal_squares,
+                        self.get_piece_location()
+                        )
+    
+    def get_piece_location(self)->dict[chess.Square, str]:
+        piece_location:dict[chess.Square, str] = {}
+        for i in range(64):
+            piece:Piece|None = self.board.piece_at(i)
+
+            if piece:
+                piece_location[i] = piece.symbol()
+        return piece_location
+
 
 
 # root = tk.Tk()

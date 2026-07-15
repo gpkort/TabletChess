@@ -3,14 +3,14 @@ from sqlite3 import connect, Connection, Cursor
 import pandas as pd
 from os import path, walk
 
-from GameManager import STARTING_FEN, IMAGE_MAP
+from GameManager import STARTING_FEN, IMAGE_MAP, create_puzzle_pickle
 import chess
 from chess import Board
 
 
 
 SQUARE_SIZE:int = 8
-SQLITE_FILE:str = "Puzzles.db"
+SQLITE_FILE:str = "Light_Puzzles.db"
 PUZZLES_CSV:str = "lichess_db_puzzle.csv"
 
 CHUNK_SIZE = 200000
@@ -68,6 +68,10 @@ if __name__ == "__main__":
     print("start")
     vals:list[int] = [1,2,3,4,5]
     print(", ".join([str(i) for i in vals]))
+
+    create_puzzle_pickle(connect(SQLITE_FILE), "puzzle.pk", "theme_pk")
+
+    # sq:list[chess.SQUARES]
         
     # for chunk_df in pd.read_csv(PUZZLES_CSV, chunksize=CHUNK_SIZE):
     #     chunk_df.to_csv(path.join("puzzles", f"puzzle_{str(i)}.csv"), index=False)

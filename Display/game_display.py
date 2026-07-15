@@ -4,7 +4,6 @@ import tkinter as tk
 from typing import Tuple
 from PIL import ImageTk
 import chess
-from chess import Board, engine
 
 from Input import EventDispatcher, Event
 from .square import SquareInfo
@@ -80,9 +79,8 @@ class BoardDisplay(EventDispatcher):
         for key, val in self.board_display.items():
             val.clear()
 
-        piece:str = display_info.piece_location.get(key, "") #type: ignore
-        if piece != "":
-            val.set_image(self.image_map[piece], True) #type: ignore
+        for square, piece_str in display_info.piece_location.items():
+            self.board_display[square].set_image(self.image_map[piece_str], True)
 
         if display_info.selected_square:
             self.board_display[display_info.selected_square].selected = True
