@@ -1,6 +1,7 @@
 from sqlite3 import Connection
 from dataclasses import dataclass, field
-from abc import ABC
+from abc import ABC, abstractmethod
+from typing import Tuple
 
 import pandas as pd
 
@@ -8,18 +9,37 @@ from .constants import Theme, Skill, SKILL_BUCKETS
 
 @dataclass
 class Puzzle:
+    """
+    Dataclass for puzzle information
+    """
     id:int
     puzzle_id:str
     fen:str
     first_move:str
     solutions:list[str]
     rating:int
+    game_url:str
     themes:list[str] = field(default_factory=list)
 
 
-
 class PuzzleEngine(ABC):
-    ...
+    """
+    Abstract method for puzzle engines
+
+    Args:
+        ABC (_type_): _description_
+    """
+    @abstractmethod
+    def get_puzzles(self, themes:Theme|list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+        pass
+
+    @abstractmethod
+    def get_puzzle_id_by_themes(self, themes:list[Theme])->list[int]:
+        pass
+
+    @abstractmethod
+    def get_themes_by_name(self, *,filter:str|None=None)->list[Tuple[int, str]]:
+        pass
 
 
 def create_puzzle_pickle(connection:Connection, 
@@ -28,6 +48,17 @@ def create_puzzle_pickle(connection:Connection,
                          sample_size:int = 5000,
                          themes:list[Theme]|None=None, 
                          skill:Skill|None=None):
+    """
+    Create a pickle file from database
+
+    Args:
+        connection (Connection): _description_
+        puzzle_pickle_path (str): _description_
+        theme_pickle_path (str): _description_
+        sample_size (int, optional): _description_. Defaults to 5000.
+        themes (list[Theme] | None, optional): _description_. Defaults to None.
+        skill (Skill | None, optional): _description_. Defaults to None.
+    """
     query:str = "SELECT Pid, PuzzleID, Fen, Moves, Rating, GameUrl FROM Old_Puzzles"
         
     if themes is not None:            

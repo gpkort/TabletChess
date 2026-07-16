@@ -5,18 +5,19 @@ from typing import Tuple, Any
 import pandas as pd
 
 from .constants import Theme, Skill, SKILL_BUCKETS
-from .utilites import Puzzle
+from .utilites import Puzzle, PuzzleEngine
 
 PUZZLE_DB:str = "Light_Puzzles.db"
 MIN_RATING:int = 399
 
+class PuzzleEnginePickel(PuzzleEngine):
+    ...
+    
 
-
-
-class Puzzle_Engine_DB:
+class PuzzleEngineDB(PuzzleEngine):
     def __init__(self, connection:Connection):
+        super().__init__()
         self._connection:Connection = connection
-
 
     def get_puzzles(self, themes:Theme|list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
         puzzles:list[Puzzle]= []
@@ -25,14 +26,12 @@ class Puzzle_Engine_DB:
             puzzles.append(self.get_puzzle_from_row(row))
 
         return puzzles
-        
-    def get_puzzle_id_by_themes(self, themes:Theme|list[Theme])->list[int]:
-        if type(themes) is Theme: 
-            themes = [themes]               
-        t_names:list[str] = [f"'{str(t)}'" for t in themes]          
+
+    def get_puzzle_id_by_themes(self, themes:list[Theme])->list[int]:
+        t_names:list[str] = [f"'{str(t)}'" for t in themes]
 
         query_id:str = f"SELECT PuzzleId FROM ThemeMap WHERE ThemeId IN (SELECT TID FROM Theme WHERE theme IN ({", ".join(t_names)}))"
-        
+
         ids:list[Any] = self.get_puzzle_rows(query_id)
         id_vals:list[int] = [int(id[0]) for id in ids]
 
@@ -45,13 +44,13 @@ class Puzzle_Engine_DB:
         if filter:
             query += f" WHERE Theme LIKE '%{filter}%'"
         query += ";"
-        
+
         rows:list[Any] = self.get_puzzle_rows(query)
         for row in rows:
             themes.append((row[0], row[1]))
 
         return themes
-    
+
     def get_puzzle_from_row(self, row:Any)->Puzzle:
         """
         turn a row return from a query 
