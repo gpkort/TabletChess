@@ -12,13 +12,12 @@ class Puzzle:
     """
     Dataclass for puzzle information
     """
-    id:int
-    puzzle_id:str
-    fen:str
-    first_move:str
-    solutions:list[str]
-    rating:int
-    game_url:str
+    Pid:int
+    PuzzleId:str
+    FEN:str
+    Moves:list[str]
+    Rating:int
+    GameUrl:str
     themes:list[str] = field(default_factory=list)
 
 
@@ -30,15 +29,15 @@ class PuzzleEngine(ABC):
         ABC (_type_): _description_
     """
     @abstractmethod
-    def get_puzzles(self, themes:Theme|list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+        pass
+    
+    @abstractmethod
+    def get_themes(self, *,filter:list[Theme]|None=None)->dict[Theme, str]:
         pass
 
     @abstractmethod
-    def get_puzzle_id_by_themes(self, themes:list[Theme])->list[int]:
-        pass
-
-    @abstractmethod
-    def get_themes_by_name(self, *,filter:str|None=None)->list[Tuple[int, str]]:
+    def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
         pass
 
 

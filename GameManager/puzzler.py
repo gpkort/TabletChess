@@ -11,15 +11,73 @@ PUZZLE_DB:str = "Light_Puzzles.db"
 MIN_RATING:int = 399
 
 class PuzzleEnginePickel(PuzzleEngine):
-    ...
+    """
+    Puzzle engine that depends on pikle files
+    Assumes puzzle_pickle contains:
+        Pid, 
+        PuzzleID, 
+        Fen, 
+        Moves, 
+        Rating, 
+        GameUrl
+
+    """
+    def __init__(self, puzzle_pk_path:str, theme_pk_path:str,*, shuffle_puzzles:bool=True) -> None:
+        super().__init__()
+        self.puzzle_df:pd.DataFrame = pd.read_pickle(puzzle_pk_path)
+        self.theme_map_df:pd.DataFrame = pd.read_pickle(theme_pk_path)
+
+        print(len(self.puzzle_df))
+
+        if shuffle_puzzles:
+            self.puzzle_df.sample(frac=1).reset_index(drop=True, inplace=True)
+
+    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+        filtered_df:pd.DataFrame = self.puzzle_df.copy()
+        if themes is not None and len(themes) > 0:
+            pids:set[int] = set()
+            t_map:dict[Theme, list[int]] =  self.get_theme_to_puzzle_map(themes)
+            for l in t_map.values():
+                pids.update(l)
+            filtered_df = self.puzzle_df[self.puzzle_df['PuzzleID'].isin(pids)]
+        if skill is not None:
+            filtered_df = filtered_df[filtered_df['Rating'].between(SKILL_BUCKETS[skill][0], SKILL_BUCKETS[skill][1])]
+
+        return [Puzzle(**row) for row in filtered_df.to_dict('records')]        #type: ignore
+
     
+    def get_themes(self, *,filter:list[Theme]|None=None)->dict[Theme, str]:
+        t_map:dict[Theme, str] = {}
+
+        if filter is not None:
+            t_map.update([(t, str(t)) for t in filter])
+        else:
+            t_map.update([(t.value, str(t)) for t in Theme])
+
+        return t_map
+
+    def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
+        t_df:pd.DataFrame = pd.DataFrame()
+        t_map:dict[Theme, list[int]] = {}
+
+        if themes is not None and len(themes) > 0:
+            t_df = self.theme_map_df[self.theme_map_df['ThemeID'].isin(themes)]
+        else:
+            t_df = self.theme_map_df
+
+        for k, v in t_df.to_dict().items():
+            if t_map.get(Theme(k)) is None:        
+                t_map[Theme(k)] = []
+            t_map[Theme(k)].append(int(v))
+        
+        return t_map
 
 class PuzzleEngineDB(PuzzleEngine):
     def __init__(self, connection:Connection):
         super().__init__()
         self._connection:Connection = connection
 
-    def get_puzzles(self, themes:Theme|list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
         puzzles:list[Puzzle]= []
         rows:list[Any] = self.get_puzzle_rows(self.get_puzzles_query(themes, skill, limit))
         for row in rows:
@@ -27,18 +85,27 @@ class PuzzleEngineDB(PuzzleEngine):
 
         return puzzles
 
-    def get_puzzle_id_by_themes(self, themes:list[Theme])->list[int]:
-        t_names:list[str] = [f"'{str(t)}'" for t in themes]
+    def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
+       
+        query:str = f"SELECT ThemeID, PuzzleId FROM ThemeMap"
+        theme_map:dict[Theme, list[int]] = {}
+        if themes is not None:
+            t_names:list[str] = [f"'{str(t)}'" for t in themes]
+            query += f"WHERE ThemeId IN ({",".join([str(int(i)) for i in themes])})"        #type: ignore
+        query += ";"
 
-        query_id:str = f"SELECT PuzzleId FROM ThemeMap WHERE ThemeId IN (SELECT TID FROM Theme WHERE theme IN ({", ".join(t_names)}))"
+        ids:list[Any] = self.get_puzzle_rows(query)
+       
+        for id in ids:
+            has_list:list[int]|None = theme_map.get(id[0])
+            if has_list is None:
+                theme_map[Theme(int(id[0]))] = []       
+            theme_map[Theme(int(id[0]))].append(int(id[1]))    
 
-        ids:list[Any] = self.get_puzzle_rows(query_id)
-        id_vals:list[int] = [int(id[0]) for id in ids]
-
-        return id_vals
+        return theme_map
    
-    def get_themes_by_name(self, *,filter:str|None=None)->list[Tuple[int, str]]:
-        themes:list[Tuple[int, str]] = []
+    def get_themes(self, *,filter:list[Theme]|None=None)->dict[Theme, str]:
+        themes:dict[Theme, str] = {}
         query:str = "SELECT TID, theme FROM Theme"
 
         if filter:
@@ -47,9 +114,10 @@ class PuzzleEngineDB(PuzzleEngine):
 
         rows:list[Any] = self.get_puzzle_rows(query)
         for row in rows:
-            themes.append((row[0], row[1]))
+            themes[row[0]] = row[1]
 
         return themes
+
 
     def get_puzzle_from_row(self, row:Any)->Puzzle:
         """
@@ -58,10 +126,15 @@ class PuzzleEngineDB(PuzzleEngine):
         int Puzzle object
 
         Args:
-        row: row[0]=id, row[1]=puzzle_id, row[2]=fen, row[3]=moves, row[4]=rating
+        row: row[0]=id, row[1]=puzzle_id, row[2]=fen, row[3]=moves, row[4]=rating, row[5]=GameUrl
         """
         moves:list[str] = str(row[3]).split(" ")
-        return Puzzle(int(row[0]), str(row[1]), str(row[2]), moves[0], moves[1:], int(row[4]))
+        return Puzzle(Pid=int(row[0]), 
+                      PuzzleId=str(row[1]), 
+                      FEN=str(row[2]), 
+                      Moves=moves,
+                      Rating=row[4],
+                      GameUrl=row[5])
     
     def get_puzzle_rows(self, query:str)->list[Any]:
         cursor:Cursor = self._connection.cursor()
@@ -71,12 +144,12 @@ class PuzzleEngineDB(PuzzleEngine):
 
         return rows
     
-    def get_puzzles_query(self, themes:Theme|list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->str:
-        query:str = "SELECT Pid, PuzzleID, Fen, Moves, Rating FROM Old_Puzzles"
+    def get_puzzles_query(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->str:
+        query:str = "SELECT Pid, PuzzleID, Fen, Moves, Rating, GameUrl FROM Old_Puzzles"
         
         if themes is not None:            
-            tids:list[int] = self.get_puzzle_id_by_themes(themes)
-            query += f" WHERE PID IN ({" ,".join([str(i) for i in tids])})"  
+            tids:dict[Theme, str] = self.get_themes(filter=themes)
+            query += f" WHERE PID IN ({" ,".join([str(i) for i in tids.keys()])})"  
         if skill is not None:
             stm:str = " AND" if themes is not None else " WHERE"
             query += stm + f" Rating >= {SKILL_BUCKETS[skill][0]} AND Rating <= {SKILL_BUCKETS[skill][1]}"
@@ -85,10 +158,9 @@ class PuzzleEngineDB(PuzzleEngine):
         
         return query + ";"
 
-if __name__ == "__main__":
-    pe:Puzzle_Engine = Puzzle_Engine(connect(PUZZLE_DB), cache_puzzles=True)
-
-    
+# if __name__ == "__main__":    
+#     pe_db:PuzzleEngineDB = PuzzleEngineDB(connect(PUZZLE_DB))
+#     pe_pk:PuzzleEnginePickel = PuzzleEnginePickel("puzzle_pk", "theme_pk")
 
 
 
