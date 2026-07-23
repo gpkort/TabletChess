@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 import tkinter as tk
+from tkinter import messagebox, simpledialog
 from typing import Tuple
 from PIL import ImageTk
 import chess
@@ -21,6 +23,8 @@ SELECTED_SQUARE:Tuple[int, int, int] = (255, 255, 0)
 LIGHT_SQUARE_COLOR = f"#{LIGHT_SQUARE[0]:x}{LIGHT_SQUARE[1]:x}{LIGHT_SQUARE[2]:x}"
 DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:x}{DARK_SQUARE[1]:x}{DARK_SQUARE[2]:x}"
 SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:x}{SELECTED_SQUARE[1]:x}{SELECTED_SQUARE[2]:X}"
+
+
 
 @dataclass
 class DisplayInfo:
@@ -51,8 +55,6 @@ class BoardDisplay(EventDispatcher):
         self.text_box:tk.Text | None = None
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind(self.TKINTER_LEFT_CLICK, self._left_mouse_click)
-        
-        
 
         self.board_display:dict[chess.Square, SquareInfo] = {}
         self.image_map:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map, self.square_size)
@@ -69,8 +71,19 @@ class BoardDisplay(EventDispatcher):
         if square is not None:
             self._dispatch(Event.SQUARE_CLICK, {"square": square})
 
-        
+    def get_player_yes_no(self, title:str, text:str)->bool:
+        return messagebox.askyesno(title, text)  
 
+    def get_player_input(self, title:str, text:str)->str|None:
+        return simpledialog.askstring(title, text)
+
+    def set_palyer_alert(self, title:str, text:str, icon:Any|None=None):
+
+        if icon:
+            messagebox.showinfo(title, text, icon=icon)
+        else:
+             messagebox.showinfo(title, text)
+  
     def update_board_display(self, display_info:DisplayInfo):
         """
         Iterates through squares and updates visual
@@ -92,7 +105,6 @@ class BoardDisplay(EventDispatcher):
             self.board_display[legal].legal = True
 
         self.update_root_display()
-
     
     def get_square(self, x:int, y:int)->chess.Square|None:
         """

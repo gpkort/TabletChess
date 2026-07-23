@@ -1,7 +1,9 @@
+import uuid
 from sqlite3 import Connection
+from enum import Enum
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Any, Tuple
 
 import pandas as pd
 
@@ -19,6 +21,21 @@ class Puzzle:
     Rating:int
     GameUrl:str
     themes:list[str] = field(default_factory=list)
+
+@dataclass
+class GameInfo:
+    """
+    Data class games being played or saved
+    """
+        
+    FEN:str
+    game_name:str
+    white_player_name:str
+    black_player_name:str
+    game_engine_file:str|None = None
+    puzzle_id:str|None = None
+    id:str|None = None
+    
 
 
 class PuzzleEngine(ABC):
@@ -40,6 +57,19 @@ class PuzzleEngine(ABC):
     def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
         pass
 
+
+class GamePersister(ABC):    
+    @abstractmethod
+    def save_game(self, game:GameInfo):
+        ...
+
+    @abstractmethod
+    def query_games(self, data:dict[str, Any])->Tuple[str, dict[str, GameInfo]]:
+        ...
+
+    @abstractmethod
+    def delete_game(self, game:GameInfo):
+        ...
 
 def create_puzzle_pickle(connection:Connection, 
                          puzzle_pickle_path:str,

@@ -12,7 +12,7 @@ MIN_RATING:int = 399
 
 class PuzzleEnginePickel(PuzzleEngine):
     """
-    Puzzle engine that depends on pikle files
+    Puzzle engine that depends on pickle files
     Assumes puzzle_pickle contains:
         Pid, 
         PuzzleID, 
@@ -33,13 +33,14 @@ class PuzzleEnginePickel(PuzzleEngine):
             self.puzzle_df.sample(frac=1).reset_index(drop=True, inplace=True)
 
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+        print(self.puzzle_df.columns)
         filtered_df:pd.DataFrame = self.puzzle_df.copy()
         if themes is not None and len(themes) > 0:
             pids:set[int] = set()
             t_map:dict[Theme, list[int]] =  self.get_theme_to_puzzle_map(themes)
             for l in t_map.values():
                 pids.update(l)
-            filtered_df = self.puzzle_df[self.puzzle_df['PuzzleID'].isin(pids)]
+            filtered_df = self.puzzle_df[self.puzzle_df['Pid'].isin(pids)]
         if skill is not None:
             filtered_df = filtered_df[filtered_df['Rating'].between(SKILL_BUCKETS[skill][0], SKILL_BUCKETS[skill][1])]
 
@@ -61,14 +62,17 @@ class PuzzleEnginePickel(PuzzleEngine):
         t_map:dict[Theme, list[int]] = {}
 
         if themes is not None and len(themes) > 0:
-            t_df = self.theme_map_df[self.theme_map_df['ThemeID'].isin(themes)]
+            t_df = self.theme_map_df[self.theme_map_df['ThemeID'].isin([t.value for t in themes])]
         else:
             t_df = self.theme_map_df
 
-        for k, v in t_df.to_dict().items():
-            if t_map.get(Theme(k)) is None:        
-                t_map[Theme(k)] = []
-            t_map[Theme(k)].append(int(v))
+        for row in t_df.itertuples(index=False):
+            theme:Theme = Theme(row.ThemeID)
+            if t_map.get(theme) is None:        
+                t_map[theme] = []
+            t_map[theme].append(row.PuzzleID)  #type: ignore
+
+            
         
         return t_map
 

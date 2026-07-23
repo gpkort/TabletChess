@@ -1,6 +1,7 @@
 from typing import Any
 
 import tkinter as tk
+import pandas as pd
 from chess import (engine, 
                    Square, 
                    Board, 
@@ -9,18 +10,22 @@ import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo
-# from .puzzler import Puzzle_Engine_DB
-
+from .puzzler import PuzzleEngine
+from .game_data import GamePersisterDF, GameInfo
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
 
+
 class ChessManager:
     WINDOW_CLOSE:str = "WM_DELETE_WINDOW"
 
-    def __init__(self, display_width:int, display_height, engine_path:str, board_size: int,
-                 pieces_map:dict[str, str], 
+    def __init__(self, display_width:int, display_height, board_size: int,
+                 engine_path:str,
+                 pieces_map:dict[str, str],
+                 puzzle_engine:PuzzleEngine,
+                 game_data:GamePersisterDF,
                  *, 
                  is_single_player:bool = True, 
                  single_player_is_white:bool = True,
@@ -36,10 +41,14 @@ class ChessManager:
         self.buttons.register_handler(EventHandler(Event.PUZZLES, self.button_handler))
 
         self.engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
+        self._engine_file = engine_path
         self.engine.configure({"Skill Level": engine_skill_level})
         self.limit = engine.Limit(time=0.5)
         self.board:Board = Board()
 
+        self.puzzle_engine:PuzzleEngine = puzzle_engine
+        self.game_data:GamePersisterDF = game_data
+        
         self.is_single_player:bool = is_single_player
         self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
         self.selected_square:chess.Square|None = None
@@ -58,7 +67,6 @@ class ChessManager:
     def start(self):
         self.root.mainloop()
 
-
     def on_closing(self):
         """
         Callback from close root frame
@@ -70,7 +78,10 @@ class ChessManager:
         """
         Handles button events
         """ 
-        if event == Event.NEW:       
+        if event == Event.NEW:
+            if len(self.board.move_stack) > 0:
+                self.save_current_game()
+                
             self.board_display.update_board_display(self.reset_game())
         if event == Event.PUZZLES:       
             self.handle_puzzle()
@@ -151,7 +162,22 @@ class ChessManager:
                 piece_location[i] = piece.symbol()
         return piece_location
 
+    def save_current_game(self, puzzle_id:str|None=None):
+        if self.board_display.get_player_yes_no("Save Game", "Do you want to save?"):
+            name:str|None = self.board_display.get_player_input("", "Name of game:")
+            if name is None or len(name) == 0:
+                self.board_display.set_palyer_alert("Status", "Save Canceled.")
+            else:
+                game:GameInfo = GameInfo(FEN=self.board.fen(), 
+                                         game_name=name, 
+                                         white_player_name="white", 
+                                         black_player_name="black",
+                                         game_engine_file=self._engine_file,
+                                         puzzle_id=puzzle_id
+                                         )
+                self.game_data.save_game(game)
 
+                print(self.game_data.game_df.head())
 
 # root = tk.Tk()
 # root.title("Chess")
