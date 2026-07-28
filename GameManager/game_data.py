@@ -5,38 +5,73 @@ import uuid
 
 import pandas as pd
 
-from .utilites import GamePersister, GameInfo
+from .utilites import GamePersister, GameInfo, SaveOption, GamePersisterSaveException
 
 DEFAULT_PERSIST_DF:pd.DataFrame = pd.DataFrame(data=None,columns=[f.name for f in fields(GameInfo)])
 
 class GamePersisterDF(GamePersister):
-    def __init__(self, game_df:pd.DataFrame|None) -> None:
-        super().__init__()
+    def __init__(self, game_df:pd.DataFrame|None, *, max_game_save:int=7, max_puzzle_save:int=7) -> None:
+        super().__init__(max_game_save=max_game_save, max_puzzle_save=max_puzzle_save)
 
         self._game_df:pd.DataFrame = pd.DataFrame(data=None,columns=[f.name for f in fields(GameInfo)])
 
         if game_df is not None:
-            if list(game_df.columns) != list(self._game_df):
+            if list(game_df.columns) != list(self._game_df.columns):
                 raise ValueError("Incorrect DataFrame colums!")
 
             self._game_df = game_df.copy(deep=True)
 
+        self._game_count = self._game_df["puzzle_id"].isna().sum()
+        self._puzzle_count:int = len(self._game_df) - self._game_count
+        
+
     @property
     def game_df(self)->pd.DataFrame:
         return self._game_df.copy(deep=True)
-
+    
     def save_to_disk(self, pickle_path:str):
         self._game_df.to_pickle(pickle_path)
 
-    def save_game(self, game:GameInfo, *, pickle_path:str|None=None):
+    def save_data(self, game:GameInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
+        is_puzzle:bool = game.puzzle_id is not None
+        has_room:bool = self._game_count < self._max_game_save if game.puzzle_id is None else self._puzzle_count < self._max_puzzle_save
         game.id = str(uuid.uuid4()) if game.id is None else game.id
-        
         df:pd.DataFrame = pd.DataFrame([asdict(game)])
-        
-        self._game_df = pd.concat([self._game_df, df], ignore_index=True)
+        concat_order:list[pd.DataFrame] = [self._game_df, df]
 
-        if pickle_path:
-            self.save_to_disk(pickle_path=pickle_path)
+        if not has_room:
+            if save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST:
+                idx:int = 0 if save_option == SaveOption.OVERWRITE_FIRST else -1
+                concat_order = [df, self._game_df] if save_option == SaveOption.OVERWRITE_FIRST else [self._game_df, df]
+                self._game_df.drop(self._game_df.index[idx], inplace=True)
+            else:
+                raise GamePersisterSaveException(f"{"Puzzles" if is_puzzle else "Games"} storage is full")
+        else:
+            if is_puzzle:
+                self._puzzle_count += 1
+            else:
+                self._game_count += 1
+        
+        self._game_df = pd.concat(concat_order, ignore_index=True)
+    
+    def get_games(self)->list[GameInfo]:
+        games:list[GameInfo] = []
+        pdf:pd.DataFrame = self._game_df[self._game_df["puzzle_id"].isna()]
+        x = len(pdf)
+
+        for row in pdf.to_dict('records'):
+            games.append(GameInfo(**row))         #type: ignore
+
+        return games            
+        
+    def get_puzzles(self)->list[GameInfo]:
+        puzzles:list[GameInfo] = []
+        pdf:pd.DataFrame = self._game_df[self._game_df["puzzle_id"].notna()]
+
+        for row in pdf.to_dict('records'):
+            puzzles.append(GameInfo(**row))         #type: ignore
+
+        return puzzles
 
     def query_games(self, data:dict[str, Any])->Tuple[str, dict[str, GameInfo]]:
         errors:str = ""
@@ -53,7 +88,6 @@ class GamePersisterDF(GamePersister):
                     games[row["id"]] = GameInfo(**row)      #type: ignore
                     
         return (("OK" if errors == "" else errors), games)
-
 
     def delete_game(self, game:GameInfo):
         uid:str = str(game.id)

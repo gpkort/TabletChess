@@ -11,7 +11,7 @@ import chess
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo
 from .puzzler import PuzzleEngine
-from .game_data import GamePersisterDF, GameInfo
+from .game_data import GamePersisterDF, GameInfo, SaveOption, GamePersisterSaveException
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
@@ -36,9 +36,13 @@ class ChessManager:
         self.board_display:BoardDisplay = BoardDisplay(self.root, display_width, display_height, board_size, pieces_map)
         self.board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
         self.root.protocol(self.WINDOW_CLOSE, self.on_closing)
+
+        self.game_data:GamePersisterDF = game_data
         self.buttons:TkButtonInputHandler = TkButtonInputHandler(self.root)
-        self.buttons.register_handler(EventHandler(Event.NEW, self.button_handler))
-        self.buttons.register_handler(EventHandler(Event.PUZZLES, self.button_handler))
+        self.buttons.register_handler(EventHandler(Event.NEW_GAME, self.button_handler))
+        self.buttons.register_handler(EventHandler(Event.NEW_PUZZLE, self.button_handler))
+        self.buttons.register_handler(EventHandler(Event.LOAD_GAME, self.button_handler))
+        self.buttons.register_handler(EventHandler(Event.LOAD_PUZZLE, self.button_handler))
 
         self.engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
         self._engine_file = engine_path
@@ -47,8 +51,7 @@ class ChessManager:
         self.board:Board = Board()
 
         self.puzzle_engine:PuzzleEngine = puzzle_engine
-        self.game_data:GamePersisterDF = game_data
-        
+                
         self.is_single_player:bool = is_single_player
         self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
         self.selected_square:chess.Square|None = None
@@ -78,12 +81,12 @@ class ChessManager:
         """
         Handles button events
         """ 
-        if event == Event.NEW:
+        if event == Event.NEW_GAME:
             if len(self.board.move_stack) > 0:
                 self.save_current_game()
                 
             self.board_display.update_board_display(self.reset_game())
-        if event == Event.PUZZLES:       
+        if event == Event.NEW_PUZZLE:       
             self.handle_puzzle()
     
     def handle_square_selection(self, event:Event, data:dict[str, Any]):
@@ -166,7 +169,7 @@ class ChessManager:
         if self.board_display.get_player_yes_no("Save Game", "Do you want to save?"):
             name:str|None = self.board_display.get_player_input("", "Name of game:")
             if name is None or len(name) == 0:
-                self.board_display.set_palyer_alert("Status", "Save Canceled.")
+                self.board_display.set_player_alert("Status", "Save Canceled.")
             else:
                 game:GameInfo = GameInfo(FEN=self.board.fen(), 
                                          game_name=name, 
@@ -175,9 +178,7 @@ class ChessManager:
                                          game_engine_file=self._engine_file,
                                          puzzle_id=puzzle_id
                                          )
-                self.game_data.save_game(game)
-
-                print(self.game_data.game_df.head())
+                self.game_data.save_data(game, SaveOption.OVERWRITE_FIRST)
 
 # root = tk.Tk()
 # root.title("Chess")

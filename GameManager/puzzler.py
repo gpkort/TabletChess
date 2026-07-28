@@ -1,5 +1,6 @@
 from sqlite3 import Connection, connect, Cursor
 from typing import Tuple, Any
+from dataclasses import fields
 
 
 import pandas as pd
@@ -10,7 +11,7 @@ from .utilites import Puzzle, PuzzleEngine
 PUZZLE_DB:str = "Light_Puzzles.db"
 MIN_RATING:int = 399
 
-class PuzzleEnginePickel(PuzzleEngine):
+class PuzzleEngineDF(PuzzleEngine):
     """
     Puzzle engine that depends on pickle files
     Assumes puzzle_pickle contains:
@@ -22,15 +23,28 @@ class PuzzleEnginePickel(PuzzleEngine):
         GameUrl
 
     """
-    def __init__(self, puzzle_pk_path:str, theme_pk_path:str,*, shuffle_puzzles:bool=True) -> None:
+    def __init__(self, puzzle_df:pd.DataFrame, theme_df:pd.DataFrame,*, shuffle_puzzles:bool=True) -> None:
         super().__init__()
-        self.puzzle_df:pd.DataFrame = pd.read_pickle(puzzle_pk_path)
-        self.theme_map_df:pd.DataFrame = pd.read_pickle(theme_pk_path)
+        
+        if (sorted([f.name for f in fields(Puzzle)]) != sorted(list(puzzle_df.columns))):
+            raise ValueError("Incorrect format of puzzle_df.")
 
-        print(len(self.puzzle_df))
+        if (sorted(["TID", "theme"]) != sorted(list(theme_df.columns))):
+                    raise ValueError("Incorrect format of themee_df.")
+        
+        self.puzzle_df:pd.DataFrame = puzzle_df.copy()
+        self.theme_map_df:pd.DataFrame = theme_df.copy()
 
         if shuffle_puzzles:
             self.puzzle_df.sample(frac=1).reset_index(drop=True, inplace=True)
+
+    def get_puzzle_count(self)->int:
+        return len(self.puzzle_df)
+
+    def get_random_puzzles(self)->Puzzle:
+        df_random = self.puzzle_df.sample(n=1)
+        return Puzzle(**df_random.iloc[0].asdict())
+
 
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
         print(self.puzzle_df.columns)
@@ -45,7 +59,6 @@ class PuzzleEnginePickel(PuzzleEngine):
             filtered_df = filtered_df[filtered_df['Rating'].between(SKILL_BUCKETS[skill][0], SKILL_BUCKETS[skill][1])]
 
         return [Puzzle(**row) for row in filtered_df.to_dict('records')]        #type: ignore
-
     
     def get_themes(self, *,filter:list[Theme]|None=None)->dict[Theme, str]:
         t_map:dict[Theme, str] = {}

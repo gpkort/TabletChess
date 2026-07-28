@@ -109,6 +109,7 @@ class Theme(Enum):
         return self.label       #type: ignore
 
 
+
 class Skill(Enum):
     EASY = 1
     BEGINNER = 2

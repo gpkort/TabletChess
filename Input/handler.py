@@ -6,12 +6,14 @@ from typing import Any
 import threading
 
 class Event(Enum):
-    NEW = 1
-    QUIT_GAME = 2
+    NEW_GAME = 1
+    QUIT_CURRENT = 2
     QUIT = 3
-    PUZZLES = 4
+    NEW_PUZZLE = 4
     SQUARE_CLICK = 5
     PUZZLE_SELECT = 6
+    LOAD_GAME = 7
+    LOAD_PUZZLE = 8
     UNKNOWN = 99
 
 @dataclass(frozen=True)

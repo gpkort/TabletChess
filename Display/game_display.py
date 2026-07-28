@@ -77,7 +77,7 @@ class BoardDisplay(EventDispatcher):
     def get_player_input(self, title:str, text:str)->str|None:
         return simpledialog.askstring(title, text)
 
-    def set_palyer_alert(self, title:str, text:str, icon:Any|None=None):
+    def set_player_alert(self, title:str, text:str, icon:Any|None=None):
 
         if icon:
             messagebox.showinfo(title, text, icon=icon)

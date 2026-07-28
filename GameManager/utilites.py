@@ -1,4 +1,3 @@
-import uuid
 from sqlite3 import Connection
 from enum import Enum
 from dataclasses import dataclass, field
@@ -8,6 +7,11 @@ from typing import Any, Tuple
 import pandas as pd
 
 from .constants import Theme, Skill, SKILL_BUCKETS
+
+THEME_DEFAULT_DF:pd.DataFrame = pd.DataFrame([{"TID":t, "Theme": str(t)} for t in Theme])
+
+class GamePersisterSaveException(Exception):
+    pass
 
 @dataclass
 class Puzzle:
@@ -34,9 +38,7 @@ class GameInfo:
     black_player_name:str
     game_engine_file:str|None = None
     puzzle_id:str|None = None
-    id:str|None = None
-    
-
+    id:str|None = None    
 
 class PuzzleEngine(ABC):
     """
@@ -46,7 +48,15 @@ class PuzzleEngine(ABC):
         ABC (_type_): _description_
     """
     @abstractmethod
+    def get_puzzle_count(self)->int:
+        pass
+    
+    @abstractmethod
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+        pass
+
+    @abstractmethod
+    def get_random_puzzles(self)->Puzzle:
         pass
     
     @abstractmethod
@@ -57,11 +67,52 @@ class PuzzleEngine(ABC):
     def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
         pass
 
+class SaveOption(Enum):
+    NO_OVERWITE = 0
+    OVERWRITE_LAST = 1
+    OVERWRITE_FIRST = 2
 
-class GamePersister(ABC):    
+class GamePersister(ABC):
+    def __init__(self, *, max_game_save:int, max_puzzle_save:int):
+        self._max_game_save = max_game_save
+        self._max_puzzle_save = max_puzzle_save
+
+        self._game_count:int = 0
+        self._puzzle_count:int = 0
+
+    @property
+    def game_count(self)->int:
+        return self._game_count
+
+    @property
+    def puzzle_count(self)->int:
+        return self._puzzle_count
+
+    @property
+    def max_game_save(self)->int:
+        return self._max_game_save
+    @max_game_save.setter
+    def max_game_save(self, value:int):
+        self._max_game_save = value
+
+    @property
+    def max_puzzle_save(self)->int:
+        return self._max_puzzle_save
+    @max_puzzle_save.setter
+    def max_puzzle_save(self, value:int):
+        self._max_puzzle_save = value
+
     @abstractmethod
-    def save_game(self, game:GameInfo):
+    def save_data(self, game:GameInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
         ...
+
+    @abstractmethod
+    def get_games(self)->list[GameInfo]:
+        ...
+
+    @abstractmethod
+    def get_puzzles(self)->list[GameInfo]:
+            ...
 
     @abstractmethod
     def query_games(self, data:dict[str, Any])->Tuple[str, dict[str, GameInfo]]:
