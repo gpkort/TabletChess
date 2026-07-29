@@ -10,6 +10,7 @@ from .utilites import Puzzle, PuzzleEngine
 
 PUZZLE_DB:str = "Light_Puzzles.db"
 MIN_RATING:int = 399
+DEFAULT_THEMES_DATAFRAME:pd.DataFrame = pd.DataFrame([{"TID":t.value, "Theme": str(t)} for t in Theme])
 
 class PuzzleEngineDF(PuzzleEngine):
     """
@@ -29,7 +30,7 @@ class PuzzleEngineDF(PuzzleEngine):
         if (sorted([f.name for f in fields(Puzzle)]) != sorted(list(puzzle_df.columns))):
             raise ValueError("Incorrect format of puzzle_df.")
 
-        if (sorted(["TID", "theme"]) != sorted(list(theme_df.columns))):
+        if (sorted(["TID", "Theme"]) != sorted(list(theme_df.columns))):
                     raise ValueError("Incorrect format of themee_df.")
         
         self.puzzle_df:pd.DataFrame = puzzle_df.copy()
@@ -41,9 +42,9 @@ class PuzzleEngineDF(PuzzleEngine):
     def get_puzzle_count(self)->int:
         return len(self.puzzle_df)
 
-    def get_random_puzzles(self)->Puzzle:
+    def get_random_puzzle(self)->Puzzle:
         df_random = self.puzzle_df.sample(n=1)
-        return Puzzle(**df_random.iloc[0].asdict())
+        return Puzzle(**df_random.iloc[0])
 
 
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:

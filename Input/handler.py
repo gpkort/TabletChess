@@ -26,6 +26,7 @@ class EventDispatcher(ABC):
     def __init__(self):
         self.event_handlers: dict[int, EventHandler] = {}
         self.lock = threading.Lock()
+        self.all_listeners:dict[int, list[int]] = {}
         
     def register_handler(self, event_handler: EventHandler) -> int:
         handler_id:int = hash(event_handler)
@@ -33,6 +34,16 @@ class EventDispatcher(ABC):
         with self.lock:
             self.event_handlers[handler_id] = event_handler
         return handler_id
+
+    def register_all_events(self, listener:object, callback: Callable[[Event, dict[str, Any]], None]):
+        self.unregister_all_events(listener)
+
+        for event in Event:
+            self.all_listeners[id(listener)] = self.register_handler(EventHandler(event, callback))  #type: ignore
+
+    def unregister_all_events(self, listener:object):
+            for hid in self.all_listeners.get(id(listener), []):
+                self.unregister_handler(hid)  
     
     def register_handlers(self, event_handlers: list[EventHandler]) -> list[int]:
         handler_ids = []
@@ -45,7 +56,7 @@ class EventDispatcher(ABC):
         ret:bool = False
 
         with self.lock:
-            if handler_id in self.event_handlers:
+            if  self.event_handlers.get(handler_id) is not None:
                 self.event_handlers.pop(handler_id)
                 ret = True
 

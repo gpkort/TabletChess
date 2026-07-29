@@ -8,7 +8,6 @@ import pandas as pd
 
 from .constants import Theme, Skill, SKILL_BUCKETS
 
-THEME_DEFAULT_DF:pd.DataFrame = pd.DataFrame([{"TID":t, "Theme": str(t)} for t in Theme])
 
 class GamePersisterSaveException(Exception):
     pass
@@ -50,15 +49,15 @@ class PuzzleEngine(ABC):
     @abstractmethod
     def get_puzzle_count(self)->int:
         pass
-    
+
     @abstractmethod
-    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+    def get_random_puzzle(self)->Puzzle:
         pass
 
     @abstractmethod
-    def get_random_puzzles(self)->Puzzle:
+    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
         pass
-    
+        
     @abstractmethod
     def get_themes(self, *,filter:list[Theme]|None=None)->dict[Theme, str]:
         pass

@@ -7,7 +7,7 @@ import pandas as pd
 
 from .utilites import GamePersister, GameInfo, SaveOption, GamePersisterSaveException
 
-DEFAULT_PERSIST_DF:pd.DataFrame = pd.DataFrame(data=None,columns=[f.name for f in fields(GameInfo)])
+DEFAULT_PERSIST_DF:pd.DataFrame = pd.DataFrame(data=None, columns=[f.name for f in fields(GameInfo)])
 
 class GamePersisterDF(GamePersister):
     def __init__(self, game_df:pd.DataFrame|None, *, max_game_save:int=7, max_puzzle_save:int=7) -> None:

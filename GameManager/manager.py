@@ -1,4 +1,5 @@
 from typing import Any
+from enum import Enum
 
 import tkinter as tk
 import pandas as pd
@@ -10,12 +11,19 @@ import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo
-from .puzzler import PuzzleEngine
+from .puzzler import PuzzleEngine, Puzzle
 from .game_data import GamePersisterDF, GameInfo, SaveOption, GamePersisterSaveException
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
+
+class ManagerState(Enum):
+    IDLE = 0
+    PLAYER_VS_ENGINE = 1
+    PLAYER_VS_PLAYER = 2
+    WATCHING_GAME = 3
+    SOLVING_PUZZLE = 4
 
 
 class ChessManager:
@@ -51,6 +59,7 @@ class ChessManager:
         self.board:Board = Board()
 
         self.puzzle_engine:PuzzleEngine = puzzle_engine
+        self.current_puzzle:Puzzle|None = None
                 
         self.is_single_player:bool = is_single_player
         self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
@@ -83,8 +92,7 @@ class ChessManager:
         """ 
         if event == Event.NEW_GAME:
             if len(self.board.move_stack) > 0:
-                self.save_current_game()
-                
+                self.save_current_game()                
             self.board_display.update_board_display(self.reset_game())
         if event == Event.NEW_PUZZLE:       
             self.handle_puzzle()
@@ -140,10 +148,13 @@ class ChessManager:
         ))
 
     def handle_puzzle(self):
-        ...
+        puzzle:Puzzle = self.puzzle_engine.get_random_puzzle()
+        self.board = Board(puzzle.FEN)
 
-    def reset_game(self)->DisplayInfo:
-        self.board.reset()
+    def reset_game(self, reset_board:bool=True)->DisplayInfo:
+        if reset_board:
+            self.board.reset()
+
         self.selected_square = None
         self.previous_square = None
         self.target_square = None
