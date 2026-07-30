@@ -11,8 +11,9 @@ import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo
-from .puzzler import PuzzleEngine, Puzzle
-from .game_data import GamePersisterDF, GameInfo, SaveOption, GamePersisterSaveException
+from .puzzler import PuzzleEngine
+from .game_data import GamePersisterDF, SaveOption, GamePersisterSaveException
+from .utilites import ActivityInfo
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
@@ -20,10 +21,9 @@ SCREEN_HEIGHT = 600
 
 class ManagerState(Enum):
     IDLE = 0
-    PLAYER_VS_ENGINE = 1
-    PLAYER_VS_PLAYER = 2
-    WATCHING_GAME = 3
-    SOLVING_PUZZLE = 4
+    GAME_STARTED = 1
+    PUZZLE_STARTED = 2
+    GAME_REVIEW_STARTED = 3
 
 
 class ChessManager:
@@ -39,58 +39,58 @@ class ChessManager:
                  single_player_is_white:bool = True,
                  engine_skill_level:int = 0):
         
-        self.root = tk.Tk()
-        self.root.title("Chess")
-        self.board_display:BoardDisplay = BoardDisplay(self.root, display_width, display_height, board_size, pieces_map)
-        self.board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
-        self.root.protocol(self.WINDOW_CLOSE, self.on_closing)
+        self._root = tk.Tk()
+        self._root.title("Chess")
+        self._board_display:BoardDisplay = BoardDisplay(self._root, display_width, display_height, board_size, pieces_map)
+        self._board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
+        self._root.protocol(self.WINDOW_CLOSE, self.on_closing)
 
-        self.game_data:GamePersisterDF = game_data
-        self.buttons:TkButtonInputHandler = TkButtonInputHandler(self.root)
-        self.buttons.register_all_events(self, self.button_handler)
+        self._game_data:GamePersisterDF = game_data
+        self._buttons:TkButtonInputHandler = TkButtonInputHandler(self._root)
+        self._buttons.register_all_events(self, self.button_handler)
 
-        self.engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
+        self._engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
         self._engine_file = engine_path
-        self.engine.configure({"Skill Level": engine_skill_level})
-        self.limit = engine.Limit(time=0.5)
-        self.board:Board = Board()
-
-        self.puzzle_engine:PuzzleEngine = puzzle_engine
-        self.current_puzzle:Puzzle|None = None
+        self._engine.configure({"Skill Level": engine_skill_level})
+        self._limit = engine.Limit(time=0.5)
+        self._board:Board = Board()
+        self._puzzle_engine:PuzzleEngine = puzzle_engine
                 
-        self.is_single_player:bool = is_single_player
-        self.player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
-        self.selected_square:chess.Square|None = None
-        self.previous_square:chess.Square|None = None
-        self.target_square:chess.Square|None = None
-        self.legal_squares:list[chess.Square] = []
+        self._is_single_player:bool = is_single_player
+        self._player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
+        self._selected_square:chess.Square|None = None
+        self._previous_square:chess.Square|None = None
+        self._target_square:chess.Square|None = None
+        self._legal_squares:list[chess.Square] = []
+
+        self._manager_state:ManagerState = ManagerState.IDLE
+        self._current_activity:ActivityInfo|None = None 
         
         
     def __del__(self):
         try:
-            self.engine.quit()
-            self.board_display.unregister_all_handlers()
+            self._engine.quit()
+            self._board_display.unregister_all_handlers()
         except engine.EngineTerminatedError as e:
             print(e)
 
     def start(self):
-        self.root.mainloop()
+        self._root.mainloop()
 
     def on_closing(self):
         """
         Callback from close root frame
         """
-        self.engine.close()
-        self.root.destroy()
+        self._engine.close()
+        self._root.destroy()
 
     def button_handler(self, event:Event, data:dict[str, Any]):
         """
         Handles button events
         """ 
         if event == Event.NEW_GAME:
-            if len(self.board.move_stack) > 0:
-                self.save_current_game()                
-            self.board_display.update_board_display(self.reset_game())
+            self.handle_new_game()
+            
         if event == Event.NEW_PUZZLE:       
             self.handle_puzzle()
     
@@ -103,93 +103,91 @@ class ChessManager:
             square (chess.Square): square that user clicked on.
         """
                 
-        if self.board.is_game_over() or self.board.turn != self.player_color:
+        if self._board.is_game_over() or self._board.turn != self._player_color:
             return
         
         square:Square = data["square"]
 
-        if self.selected_square is None:
-            piece:chess.Piece | None = self.board.piece_at(square)            
-            if piece is None or piece.color != self.board.turn:
+        if self._selected_square is None:
+            piece:chess.Piece | None = self._board.piece_at(square)            
+            if piece is None or piece.color != self._board.turn:
                 return
-            self.legal_squares = [m.to_square for m in self.board.legal_moves if m.from_square == square]
-            self.selected_square = square
-            self.previous_square = None
-            self.target_square = None
+            self._legal_squares = [m.to_square for m in self._board.legal_moves if m.from_square == square]
+            self._selected_square = square
+            self._previous_square = None
+            self._target_square = None
         else:
-            if self.selected_square == square:
-                self.selected_square = None
-                self.previous_square = None
-                self.target_square = None
+            if self._selected_square == square:
+                self._selected_square = None
+                self._previous_square = None
+                self._target_square = None
             else:
-                piece:chess.Piece | None = self.board.piece_at(self.selected_square)
-                if piece is None or piece.color != self.board.turn:
+                piece:chess.Piece | None = self._board.piece_at(self._selected_square)
+                if piece is None or piece.color != self._board.turn:
                     return
-                if square in self.legal_squares:
-                    self.board.push(chess.Move(self.selected_square, square))
-                    pr:engine.PlayResult = self.engine.play(self.board, self.limit)
+                if square in self._legal_squares:
+                    self._board.push(chess.Move(self._selected_square, square))
+                    pr:engine.PlayResult = self._engine.play(self._board, self._limit)
                     if pr.move:
-                        self.board.push(pr.move)
-                        self.previous_square = pr.move.from_square
-                        self.target_square = pr.move.to_square
-                    self.selected_square = None
-                    self.legal_squares.clear()
+                        self._board.push(pr.move)
+                        self._previous_square = pr.move.from_square
+                        self._target_square = pr.move.to_square
+                    self._selected_square = None
+                    self._legal_squares.clear()
         
         
-        self.board_display.update_board_display(DisplayInfo(
-            self.selected_square,
-            self.previous_square,
-            self.target_square,
-            self.legal_squares,
+        self._board_display.update_board_display(DisplayInfo(
+            self._selected_square,
+            self._previous_square,
+            self._target_square,
+            self._legal_squares,
             self.get_piece_location()
         ))
 
     def handle_new_game(self):
-        ...
+        if self._manager_state == ManagerState.IDLE:
+            self._board_display.update_board_display(self.reset_game())
+        else:
+            if len(self._board.move_stack) > 0:
+                self.save_current_activity()                
+        
     
     def handle_puzzle(self):
-        puzzle:Puzzle = self.puzzle_engine.get_random_puzzle()
-        self.board = Board(puzzle.FEN)
+        puzzle:ActivityInfo = self._puzzle_engine.get_random_puzzle()
+        self._board = Board(puzzle.FEN)
 
     def reset_game(self, reset_board:bool=True)->DisplayInfo:
         if reset_board:
-            self.board.reset()
+            self._board.reset()
 
-        self.selected_square = None
-        self.previous_square = None
-        self.target_square = None
-        self.legal_squares = []
+        self._selected_square = None
+        self._previous_square = None
+        self._target_square = None
+        self._legal_squares = []
         return DisplayInfo(
-                        self.selected_square,
-                        self.previous_square,
-                        self.target_square,
-                        self.legal_squares,
+                        self._selected_square,
+                        self._previous_square,
+                        self._target_square,
+                        self._legal_squares,
                         self.get_piece_location()
                         )
     
     def get_piece_location(self)->dict[chess.Square, str]:
         piece_location:dict[chess.Square, str] = {}
         for i in range(64):
-            piece:Piece|None = self.board.piece_at(i)
+            piece:Piece|None = self._board.piece_at(i)
 
             if piece:
                 piece_location[i] = piece.symbol()
         return piece_location
 
-    def save_current_game(self, puzzle_id:str|None=None):
-        if self.board_display.get_player_yes_no("Save Game", "Do you want to save?"):
-            name:str|None = self.board_display.get_player_input("", "Name of game:")
+    def save_current_activity(self, puzzle_id:str|None=None):
+        if self._board_display.get_player_yes_no("Save Game", "Do you want to save?"):
+            name:str|None = self._board_display.get_player_input("", "Name of game:")
             if name is None or len(name) == 0:
-                self.board_display.set_player_alert("Status", "Save Canceled.")
+                self._board_display.set_player_alert("Status", "Save Canceled.")
             else:
-                game:GameInfo = GameInfo(FEN=self.board.fen(), 
-                                         game_name=name, 
-                                         white_player_name="white", 
-                                         black_player_name="black",
-                                         game_engine_file=self._engine_file,
-                                         puzzle_id=puzzle_id
-                                         )
-                self.game_data.save_data(game, SaveOption.OVERWRITE_FIRST)
+                self._game_data.save_data(self._current_activity, SaveOption.OVERWRITE_FIRST)
 
 # root = tk.Tk()
 # root.title("Chess")

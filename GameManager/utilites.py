@@ -3,41 +3,67 @@ from enum import Enum
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import Any, Tuple
+import uuid
 
 import pandas as pd
+from chess import Outcome
 
 from .constants import Theme, Skill, SKILL_BUCKETS
 
+class ActivityStatus(Enum):
+    UNKNOWN = 0
+    NOT_STARTED = 1
+    IN_PROGRESS = 2
+    COMPLETE = 3
 
-class GamePersisterSaveException(Exception):
+
+class ActivityPersisterSaveException(Exception):
     pass
 
 @dataclass
-class Puzzle:
-    """
-    Dataclass for puzzle information
-    """
-    Pid:int
-    PuzzleId:str
+class ActivityInfo:        
     FEN:str
-    Moves:list[str]
-    Rating:int
-    GameUrl:str
-    themes:list[str] = field(default_factory=list)
-
-@dataclass
-class GameInfo:
-    """
-    Data class games being played or saved
-    """
-        
-    FEN:str
-    game_name:str
-    white_player_name:str
-    black_player_name:str
+    activity_name:str
+    activity_id:uuid.UUID | None = None
+    lichess_puzzle_id:str|None=None
+    puzzle_moves:list[str]|None = None
+    puzzle_rating:int|None = None
+    activity_url:str|None = None
+    puzzle_themes:list[str] = field(default_factory=list)
+    white_player_name:str = "white"
+    black_player_name:str = "black"
     game_engine_file:str|None = None
-    puzzle_id:str|None = None
-    id:str|None = None    
+    activity_moves:list[str] = field(default_factory=list)
+    activity_outcome:Outcome|None = None
+    activity_status:ActivityStatus = ActivityStatus.UNKNOWN
+
+PUZZLE_DATA_FIELDS:list[str] = ["Pid", "PuzzleID", "Fen", "Moves", "Rating", "GameUrl", "themes"]
+# @dataclass
+# class Puzzle:
+#     """
+#     Dataclass for puzzle information
+#     """
+#     Pid:int
+#     PuzzleId:str
+#     FEN:str
+#     Moves:list[str]
+#     Rating:int
+#     GameUrl:str
+#     themes:list[str] = field(default_factory=list)
+
+# @dataclass
+# class GameInfo:
+#     """
+#     Data class games being played or saved
+#     """
+        
+#     FEN:str
+#     game_name:str
+#     white_player_name:str
+#     black_player_name:str
+#     game_engine_file:str|None = None
+#     puzzle_id:str|None = None
+#     id:str|None = None    
 
 class PuzzleEngine(ABC):
     """
@@ -51,11 +77,11 @@ class PuzzleEngine(ABC):
         pass
 
     @abstractmethod
-    def get_random_puzzle(self)->Puzzle:
+    def get_random_puzzle(self)->ActivityInfo:
         pass
 
     @abstractmethod
-    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[Puzzle]:
+    def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[ActivityInfo]:
         pass
         
     @abstractmethod
@@ -71,54 +97,34 @@ class SaveOption(Enum):
     OVERWRITE_LAST = 1
     OVERWRITE_FIRST = 2
 
-class GamePersister(ABC):
-    def __init__(self, *, max_game_save:int, max_puzzle_save:int):
-        self._max_game_save = max_game_save
-        self._max_puzzle_save = max_puzzle_save
+class ActivityPersister(ABC):
+    def __init__(self, *, max_activity_save:int):
+        self._max_activity_save = max_activity_save
 
-        self._game_count:int = 0
-        self._puzzle_count:int = 0
+        self._activity_count:int = 0
 
     @property
-    def game_count(self)->int:
-        return self._game_count
+    def activity_count(self)->int:
+        return self._activity_count
 
+    
     @property
-    def puzzle_count(self)->int:
-        return self._puzzle_count
-
-    @property
-    def max_game_save(self)->int:
-        return self._max_game_save
-    @max_game_save.setter
+    def max_activity_save(self)->int:
+        return self._max_activity_save
+    @max_activity_save.setter
     def max_game_save(self, value:int):
-        self._max_game_save = value
-
-    @property
-    def max_puzzle_save(self)->int:
-        return self._max_puzzle_save
-    @max_puzzle_save.setter
-    def max_puzzle_save(self, value:int):
-        self._max_puzzle_save = value
+        self._max_activity_save = value
 
     @abstractmethod
-    def save_data(self, game:GameInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
+    def save_activity(self, activity:ActivityInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
         ...
 
     @abstractmethod
-    def get_games(self)->list[GameInfo]:
+    def get_activities(self)->list[ActivityInfo]:
         ...
 
     @abstractmethod
-    def get_puzzles(self)->list[GameInfo]:
-            ...
-
-    @abstractmethod
-    def query_games(self, data:dict[str, Any])->Tuple[str, dict[str, GameInfo]]:
-        ...
-
-    @abstractmethod
-    def delete_game(self, game:GameInfo):
+    def delete_game(self, activity_id:uuid.UUID):
         ...
 
 def create_puzzle_pickle(connection:Connection, 

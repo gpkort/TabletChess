@@ -5,25 +5,21 @@ import uuid
 
 import pandas as pd
 
-from .utilites import GamePersister, GameInfo, SaveOption, GamePersisterSaveException
+from .utilites import ActivityPersister, ActivityInfo, SaveOption, ActivityPersisterSaveException
 
-DEFAULT_PERSIST_DF:pd.DataFrame = pd.DataFrame(data=None, columns=[f.name for f in fields(GameInfo)])
+class ActivityPersisterDF(ActivityPersister):
+    def __init__(self, activity_df:pd.DataFrame|None, *, max_activites_save:int=15) -> None:
+        super().__init__(max_activity_save=max_activites_save)
 
-class GamePersisterDF(GamePersister):
-    def __init__(self, game_df:pd.DataFrame|None, *, max_game_save:int=7, max_puzzle_save:int=7) -> None:
-        super().__init__(max_game_save=max_game_save, max_puzzle_save=max_puzzle_save)
+        self._activity_df:pd.DataFrame = pd.DataFrame(data=None,columns=[f.name for f in fields(ActivityInfo)])
 
-        self._game_df:pd.DataFrame = pd.DataFrame(data=None,columns=[f.name for f in fields(GameInfo)])
-
-        if game_df is not None:
-            if list(game_df.columns) != list(self._game_df.columns):
+        if activity_df is not None:
+            if list(activity_df.columns) != list(self._activity_df.columns):
                 raise ValueError("Incorrect DataFrame colums!")
 
-            self._game_df = game_df.copy(deep=True)
+            self._game_df = activity_df.copy(deep=True)
 
-        self._game_count = self._game_df["puzzle_id"].isna().sum()
-        self._puzzle_count:int = len(self._game_df) - self._game_count
-        
+        self._activity_count = len(self._game_df)
 
     @property
     def game_df(self)->pd.DataFrame:
@@ -32,77 +28,38 @@ class GamePersisterDF(GamePersister):
     def save_to_disk(self, pickle_path:str):
         self._game_df.to_pickle(pickle_path)
 
-    def save_data(self, game:GameInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
-        is_puzzle:bool = game.puzzle_id is not None
-        has_room:bool = self._game_count < self._max_game_save if game.puzzle_id is None else self._puzzle_count < self._max_puzzle_save
-        game.id = str(uuid.uuid4()) if game.id is None else game.id
-        df:pd.DataFrame = pd.DataFrame([asdict(game)])
-        concat_order:list[pd.DataFrame] = [self._game_df, df]
+    def save_data(self, activity:ActivityInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
+        """
+        Save activity to data frmae. Note, does not save to disk
+        """
+        has_room:bool = self._activity_count < self._max_activity_save
+        if has_room and not (save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST):
+            mess:str = f"Activity storage is full: current activity count: {self._activity_count}, max is {self._max_activity_save}"
+            raise ActivityPersisterSaveException()
+
+        if activity.activity_id is None:
+            activity.activity_id = uuid.uuid4()
+
+        df:pd.DataFrame = pd.DataFrame([asdict(activity)])
+        concat_order:list[pd.DataFrame] = [df, self._game_df]
+        drop_index:int = -1
+
+        if save_option == SaveOption.OVERWRITE_LAST:
+            concat_order.reverse()
+            drop_index = -1
 
         if not has_room:
-            if save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST:
-                idx:int = 0 if save_option == SaveOption.OVERWRITE_FIRST else -1
-                concat_order = [df, self._game_df] if save_option == SaveOption.OVERWRITE_FIRST else [self._game_df, df]
-                self._game_df.drop(self._game_df.index[idx], inplace=True)
-            else:
-                raise GamePersisterSaveException(f"{"Puzzles" if is_puzzle else "Games"} storage is full")
-        else:
-            if is_puzzle:
-                self._puzzle_count += 1
-            else:
-                self._game_count += 1
+            self._game_df.drop(self._game_df.index[drop_index], inplace=True)
         
         self._game_df = pd.concat(concat_order, ignore_index=True)
+        self._activity_count = len(self._game_df)
     
-    def get_games(self)->list[GameInfo]:
-        games:list[GameInfo] = []
-        pdf:pd.DataFrame = self._game_df[self._game_df["puzzle_id"].isna()]
-        x = len(pdf)
+    def get_activities(self)->list[ActivityInfo]:
+        return [ActivityInfo(**act) for act in self._activity_df.to_dict('records')]     #type: ignore
+    
+    def delete_game(self, activity_id:uuid.UUID):
+        drop_index:pd.Index[Any] = self._game_df[self._game_df['activity_id'] == activity_id].index
+        if len(drop_index) == 0:
+            raise ValueError(f"Activity with {str(activity_id)} not found!")
 
-        for row in pdf.to_dict('records'):
-            games.append(GameInfo(**row))         #type: ignore
-
-        return games            
-        
-    def get_puzzles(self)->list[GameInfo]:
-        puzzles:list[GameInfo] = []
-        pdf:pd.DataFrame = self._game_df[self._game_df["puzzle_id"].notna()]
-
-        for row in pdf.to_dict('records'):
-            puzzles.append(GameInfo(**row))         #type: ignore
-
-        return puzzles
-
-    def query_games(self, data:dict[str, Any])->Tuple[str, dict[str, GameInfo]]:
-        errors:str = ""
-        games: dict[str, GameInfo] = {}
-        property_names:list[str] = [f.name for f in fields(GameInfo)]
-
-        for prop, val in data.items():
-            if prop not in property_names:
-                errors += f"{prop} not recognized, "
-            else:
-                res_df:pd.DataFrame = self._game_df[self._game_df[prop] == val]
-
-                for row in res_df.to_dict('records'):
-                    games[row["id"]] = GameInfo(**row)      #type: ignore
-                    
-        return (("OK" if errors == "" else errors), games)
-
-    def delete_game(self, game:GameInfo):
-        uid:str = str(game.id)
-
-        if game.id is not None:
-            self._game_df.drop(self._game_df[self._game_df['id'] == uid].index, inplace=True)
-        else:
-            raise ValueError("Game has no id!")
-
-
-
-    # id:UUID
-    # FEN:str
-    # game_name:str
-    # white_player_name:str
-    # black_player_name:str
-    # game_engine:EngineType|None = None
-    # puzzle_id:str|None = None
+        self._game_df.drop(drop_index, inplace=True)
