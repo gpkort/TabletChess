@@ -27,6 +27,10 @@ class PuzzleEngineDF(PuzzleEngine):
     def __init__(self, puzzle_df:pd.DataFrame, theme_df:pd.DataFrame,*, shuffle_puzzles:bool=True) -> None:
         super().__init__()
         
+        tstr:str = "themes"
+        if "themes" not in list(puzzle_df.columns):            
+            puzzle_df['themes'] = [[] for _ in range(len(puzzle_df))]
+            
         if (sorted([f.name for f in fields(Puzzle)]) != sorted(list(puzzle_df.columns))):
             raise ValueError("Incorrect format of puzzle_df.")
 

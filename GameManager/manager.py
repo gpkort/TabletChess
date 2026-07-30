@@ -34,8 +34,8 @@ class ChessManager:
                  pieces_map:dict[str, str],
                  puzzle_engine:PuzzleEngine,
                  game_data:GamePersisterDF,
-                 *, 
-                 is_single_player:bool = True, 
+                 *,
+                 is_single_player:bool = True,
                  single_player_is_white:bool = True,
                  engine_skill_level:int = 0):
         
@@ -47,10 +47,7 @@ class ChessManager:
 
         self.game_data:GamePersisterDF = game_data
         self.buttons:TkButtonInputHandler = TkButtonInputHandler(self.root)
-        self.buttons.register_handler(EventHandler(Event.NEW_GAME, self.button_handler))
-        self.buttons.register_handler(EventHandler(Event.NEW_PUZZLE, self.button_handler))
-        self.buttons.register_handler(EventHandler(Event.LOAD_GAME, self.button_handler))
-        self.buttons.register_handler(EventHandler(Event.LOAD_PUZZLE, self.button_handler))
+        self.buttons.register_all_events(self, self.button_handler)
 
         self.engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(engine_path)
         self._engine_file = engine_path
@@ -147,6 +144,9 @@ class ChessManager:
             self.get_piece_location()
         ))
 
+    def handle_new_game(self):
+        ...
+    
     def handle_puzzle(self):
         puzzle:Puzzle = self.puzzle_engine.get_random_puzzle()
         self.board = Board(puzzle.FEN)

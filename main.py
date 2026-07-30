@@ -6,7 +6,7 @@ from GameManager import (IMAGE_MAP,
                          ChessManager,
                          PuzzleEngineDF,
                          GamePersisterDF, 
-                         DEFAULT_PERSIST_DF)
+                         DEFAULT_THEMES_DATAFRAME)
 
 
 # from GameManager import PuzzleEnginePickel, Puzzle, Theme
@@ -18,13 +18,15 @@ SCREEN_HEIGHT = 600
 # SCREEN_WIDTH = 1024
 # SCREEN_HEIGHT = 768
 
-pe_pk:PuzzleEngineDF = PuzzleEngineDF(pd.read_pickle(path.join(PICKLE_DIR, "puzzle_pk")), 
-                                                    pd.read_pickle(path.join(PICKLE_DIR,"theme_pk")))       
-cm:ChessManager = ChessManager(SCREEN_WIDTH, SCREEN_HEIGHT, 480, ENGINE, IMAGE_MAP, pe_pk, GamePersisterDF(game_df=None) )
+pe_pk:PuzzleEngineDF = PuzzleEngineDF(pd.read_pickle("puzzle_pk"), DEFAULT_THEMES_DATAFRAME) 
+# pe_pk:PuzzleEngineDF = PuzzleEngineDF(pd.read_pickle(path.join(PICKLE_DIR, "puzzle_pk")), 
+#                                                     pd.read_pickle(path.join(PICKLE_DIR,"theme_pk")))     
+cm:ChessManager = ChessManager(SCREEN_WIDTH, SCREEN_HEIGHT, 480, ENGINE, IMAGE_MAP, 
+                               pe_pk, GamePersisterDF(game_df=None) )
 
 def main():
     global cm
-    cm.start()    
+    cm.start()
 
 if __name__ == "__main__":
     main()

@@ -24,25 +24,25 @@ class EventHandler:
 
 class EventDispatcher(ABC):
     def __init__(self):
-        self.event_handlers: dict[int, EventHandler] = {}
-        self.lock = threading.Lock()
-        self.all_listeners:dict[int, list[int]] = {}
+        self._event_handlers: dict[int, EventHandler] = {}
+        self._lock = threading.Lock()
+        self._all_listeners:dict[int, list[int]] = {}
         
     def register_handler(self, event_handler: EventHandler) -> int:
         handler_id:int = hash(event_handler)
 
-        with self.lock:
-            self.event_handlers[handler_id] = event_handler
+        with self._lock:
+            self._event_handlers[handler_id] = event_handler
         return handler_id
 
     def register_all_events(self, listener:object, callback: Callable[[Event, dict[str, Any]], None]):
         self.unregister_all_events(listener)
 
         for event in Event:
-            self.all_listeners[id(listener)] = self.register_handler(EventHandler(event, callback))  #type: ignore
+            self._all_listeners[id(listener)] = self.register_handler(EventHandler(event, callback))  #type: ignore
 
     def unregister_all_events(self, listener:object):
-            for hid in self.all_listeners.get(id(listener), []):
+            for hid in self._all_listeners.get(id(listener), []):
                 self.unregister_handler(hid)  
     
     def register_handlers(self, event_handlers: list[EventHandler]) -> list[int]:
@@ -55,9 +55,9 @@ class EventDispatcher(ABC):
     def unregister_handler(self, handler_id: int) -> bool:
         ret:bool = False
 
-        with self.lock:
-            if  self.event_handlers.get(handler_id) is not None:
-                self.event_handlers.pop(handler_id)
+        with self._lock:
+            if  self._event_handlers.get(handler_id) is not None:
+                self._event_handlers.pop(handler_id)
                 ret = True
 
         return ret
@@ -67,15 +67,15 @@ class EventDispatcher(ABC):
             self.unregister_handler(handler_id)
 
     def unregister_all_handlers(self) -> None:
-        with self.lock:
-            self.event_handlers.clear()
+        with self._lock:
+            self._event_handlers.clear()
     
     def _dispatch(self, event:Event, data: dict[str, Any] | None = None): 
         if data is None:
             data = {}
 
-        with self.lock:
-            current_observers = self.event_handlers.copy()
+        with self._lock:
+            current_observers = self._event_handlers.copy()
         
         for handler in reversed(list(current_observers.values())):
             if handler.event_type == event:
