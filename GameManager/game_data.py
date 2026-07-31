@@ -28,14 +28,14 @@ class ActivityPersisterDF(ActivityPersister):
     def save_to_disk(self, pickle_path:str):
         self._game_df.to_pickle(pickle_path)
 
-    def save_data(self, activity:ActivityInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
+    def save_activity(self, activity:ActivityInfo, save_option:SaveOption=SaveOption.NO_OVERWITE):
         """
         Save activity to data frmae. Note, does not save to disk
         """
         has_room:bool = self._activity_count < self._max_activity_save
         if has_room and not (save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST):
             mess:str = f"Activity storage is full: current activity count: {self._activity_count}, max is {self._max_activity_save}"
-            raise ActivityPersisterSaveException()
+            raise ActivityPersisterSaveException(mess)
 
         if activity.activity_id is None:
             activity.activity_id = uuid.uuid4()

@@ -1,12 +1,13 @@
 __all__ = ["constants", "puzzler", "manager", "utilites", "game_data"]
 
 from .game_data import ActivityPersisterDF
-from .puzzler import PuzzleEngineDB, PuzzleEngineDF, DEFAULT_THEMES_DATAFRAME
+from .puzzler import  PuzzleEngineDF, DEFAULT_THEMES_DATAFRAME
 from .utilites import (PuzzleEngine,
                        ActivityPersister,
                        create_puzzle_pickle,
                        ActivityPersisterSaveException,
-                       PUZZLE_DATA_FIELDS
+                       PUZZLE_DATA_FIELDS,
+                       ActivityInfo
                        )
 
 from .constants import (STARTING_FEN,
