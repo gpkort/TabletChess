@@ -12,7 +12,7 @@ import chess
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo
 from .puzzler import PuzzleEngine
-from .game_data import GamePersisterDF, SaveOption, GamePersisterSaveException
+from .game_data import ActivityPersisterDF, SaveOption, ActivityPersisterSaveException
 from .utilites import ActivityInfo
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
@@ -33,7 +33,7 @@ class ChessManager:
                  engine_path:str,
                  pieces_map:dict[str, str],
                  puzzle_engine:PuzzleEngine,
-                 game_data:GamePersisterDF,
+                 game_data:ActivityPersisterDF,
                  *,
                  is_single_player:bool = True,
                  single_player_is_white:bool = True,
@@ -45,7 +45,7 @@ class ChessManager:
         self._board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
         self._root.protocol(self.WINDOW_CLOSE, self.on_closing)
 
-        self._game_data:GamePersisterDF = game_data
+        self._game_data:ActivityPersisterDF = game_data
         self._buttons:TkButtonInputHandler = TkButtonInputHandler(self._root)
         self._buttons.register_all_events(self, self.button_handler)
 

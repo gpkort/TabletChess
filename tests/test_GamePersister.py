@@ -45,7 +45,7 @@ class TestActivityPersisterDF:
 
     def test_init(self):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=None)
-        assert gp.activity_count == 10
+        assert gp.activity_count == 0
    
     def test_get_games_puzzles(self, basic_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=basic_activities)
@@ -83,26 +83,26 @@ class TestActivityPersisterDF:
                                             FEN=STARTING_FEN,white_player_name="w", black_player_name="b")
 
         assert gp.activity_count == 15
-        assert any(g.activity_name == "game_0" for g in gp.get_activities())
+        assert any(g.activity_name == "activity_0" for g in gp.get_activities())
         assert not any(g.activity_name == game_name for g in gp.get_activities())
         gp.save_activity(activity, SaveOption.OVERWRITE_FIRST)
         assert gp.activity_count == 15
-        assert not any(g.activity_name == "game_0" for g in gp.get_activities())
+        assert not any(g.activity_name == "activity_0" for g in gp.get_activities())
         assert any(g.activity_name == game_name for g in gp.get_activities())
 
     def test_save_game_no_room_overwrite_last(self, full_activities):
-            gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=full_activities)
-            game_name:str = "overwrite_first"
-            activity:ActivityInfo = ActivityInfo(activity_name=game_name,
-                                                FEN=STARTING_FEN,white_player_name="w", black_player_name="b")
-    
-            assert gp.activity_count == 15
-            assert any(g.activity_name == "game_14" for g in gp.get_activities())
-            assert not any(g.activity_name == game_name for g in gp.get_activities())
-            gp.save_activity(activity, SaveOption.OVERWRITE_LAST)
-            assert gp.activity_count == 15
-            assert not any(g.activity_name == "game_14" for g in gp.get_activities())
-            assert any(g.activity_name == game_name for g in gp.get_activities())
+        gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=full_activities)
+        game_name:str = "overwrite_first"
+        activity:ActivityInfo = ActivityInfo(activity_name=game_name,
+                                            FEN=STARTING_FEN,white_player_name="w", black_player_name="b")
+
+        assert gp.activity_count == 15
+        assert any(g.activity_name == "activity_14" for g in gp.get_activities())
+        assert not any(g.activity_name == game_name for g in gp.get_activities())
+        gp.save_activity(activity, SaveOption.OVERWRITE_LAST)
+        assert gp.activity_count == 15
+        assert not any(g.activity_name == "activity_14" for g in gp.get_activities())
+        assert any(g.activity_name == game_name for g in gp.get_activities())
             
                 
     

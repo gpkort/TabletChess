@@ -38,32 +38,6 @@ class ActivityInfo:
     activity_status:ActivityStatus = ActivityStatus.UNKNOWN
 
 PUZZLE_DATA_FIELDS:list[str] = ["Pid", "PuzzleID", "Fen", "Moves", "Rating", "GameUrl", "themes"]
-# @dataclass
-# class Puzzle:
-#     """
-#     Dataclass for puzzle information
-#     """
-#     Pid:int
-#     PuzzleId:str
-#     FEN:str
-#     Moves:list[str]
-#     Rating:int
-#     GameUrl:str
-#     themes:list[str] = field(default_factory=list)
-
-# @dataclass
-# class GameInfo:
-#     """
-#     Data class games being played or saved
-#     """
-        
-#     FEN:str
-#     game_name:str
-#     white_player_name:str
-#     black_player_name:str
-#     game_engine_file:str|None = None
-#     puzzle_id:str|None = None
-#     id:str|None = None    
 
 class PuzzleEngine(ABC):
     """
