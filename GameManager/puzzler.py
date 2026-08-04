@@ -1,6 +1,6 @@
 from sqlite3 import Connection, connect, Cursor
 from typing import Tuple, Any, Hashable
-from dataclasses import fields
+from dataclasses import asdict
 
 
 import pandas as pd
@@ -24,20 +24,26 @@ class PuzzleEngineDF(PuzzleEngine):
         GameUrl
 
     """
-    def __init__(self, puzzle_df:pd.DataFrame, theme_df:pd.DataFrame,*, shuffle_puzzles:bool=True) -> None:
+    def __init__(self, 
+                 puzzle_df:pd.DataFrame, 
+                 theme_map_df:pd.DataFrame,*, 
+                 shuffle_puzzles:bool=True) -> None:
+        
         super().__init__()
         
         if "themes" not in list(puzzle_df.columns):            
             puzzle_df['themes'] = [[] for _ in range(len(puzzle_df))]
-            
-        if (sorted(PUZZLE_DATA_FIELDS) != sorted(list(puzzle_df.columns))):
+
+        if sorted(PUZZLE_DATA_FIELDS) != sorted(list(puzzle_df.columns)):
+            print(f"expected: {PUZZLE_DATA_FIELDS}")
+            print(f"actual: {list(puzzle_df.columns)}")
             raise ValueError("Incorrect format of puzzle_df.")
 
-        if (sorted(["TID", "Theme"]) != sorted(list(theme_df.columns))):
-                    raise ValueError("Incorrect format of themee_df.")
+        if sorted(["ThemeID", "PuzzleID"]) != sorted(list(theme_map_df.columns)):
+                            raise ValueError("Incorrect format of theme_map_df.")
         
         self.puzzle_df:pd.DataFrame = puzzle_df.copy()
-        self.theme_map_df:pd.DataFrame = theme_df.copy()
+        self.theme_map_df:pd.DataFrame = theme_map_df.copy()
 
         if shuffle_puzzles:
             self.puzzle_df.sample(frac=1).reset_index(drop=True, inplace=True)
@@ -46,8 +52,10 @@ class PuzzleEngineDF(PuzzleEngine):
         return len(self.puzzle_df)
 
     def get_random_puzzle(self)->ActivityInfo:
+        print(self.puzzle_df.head())
         df_random = self.puzzle_df.sample(n=1)
-        return(self._data_row_to_activity(df_random.to_dict()))
+        print(df_random.head())
+        return(self._data_row_to_activity(df_random.iloc[0].to_dict()))
 
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[ActivityInfo]:        
         filtered_df:pd.DataFrame = self.puzzle_df.copy()
@@ -98,11 +106,11 @@ class PuzzleEngineDF(PuzzleEngine):
 
         return themes
 
-    def _data_row_to_activity(self, row:dict[Hashable, Any])->ActivityInfo:
+    def _data_row_to_activity(self, row:dict[Hashable, Any]|dict[str, Any])->ActivityInfo:
         return ActivityInfo(
-                    FEN=str(row["Fen"]),
-                    lichess_puzzle_id=str(row["PuzzleID"]),
-                    activity_name=str(row["PuzzleID"]),
+                    FEN=str(row["FEN"]),
+                    lichess_puzzle_id=str(row["PuzzleId"]),
+                    activity_name=str(row["PuzzleId"]),
                     puzzle_moves=str(row["Moves"]).split(" "),
                     puzzle_rating=int(row["Rating"]),
                     activity_url=str(row["GameUrl"]),

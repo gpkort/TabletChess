@@ -33,23 +33,22 @@ class ActivityPersisterDF(ActivityPersister):
         Save activity to data frmae. Note, does not save to disk
         """
         is_full:bool = self._activity_count >= self._max_activity_save
-        if is_full and not (save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST):
-            mess:str = f"Activity storage is full: current activity count: {self._activity_count}, max is {self._max_activity_save}"
-            raise ActivityPersisterSaveException(mess)
 
         if activity.activity_id is None:
             activity.activity_id = uuid.uuid4()
-
         df:pd.DataFrame = pd.DataFrame([asdict(activity)])
-        concat_order:list[pd.DataFrame] = [df, self._activity_df]
-        drop_index:int = 0
-
-        if save_option == SaveOption.OVERWRITE_LAST:
-            concat_order.reverse()
-            drop_index = -1
+        concat_order:list[pd.DataFrame] = [self._activity_df, df]
 
         if is_full:
-            self._activity_df.drop(self._activity_df.index[drop_index], inplace=True)
+            if not (save_option == SaveOption.OVERWRITE_FIRST or save_option == SaveOption.OVERWRITE_LAST):
+                mess:str = f"Activity storage is full: current activity count: {self._activity_count}, max is {self._max_activity_save}"
+                raise ActivityPersisterSaveException(mess)
+            if save_option == SaveOption.OVERWRITE_FIRST:
+                self._activity_df = self._activity_df.iloc[1:]
+                concat_order = [self._activity_df, df]
+            elif save_option == SaveOption.OVERWRITE_LAST:
+                self._activity_df = self._activity_df.iloc[:-1] 
+                concat_order = [df, self._activity_df]
         
         self._activity_df = pd.concat(concat_order, ignore_index=True)
         self._activity_count = len(self._activity_df)

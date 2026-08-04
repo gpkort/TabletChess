@@ -18,8 +18,9 @@ def basic_activities():
         activity:ActivityInfo = ActivityInfo(activity_name=f"activity_{i}",
                                              FEN=STARTING_FEN,
                                              activity_id=uuid.uuid4())
-        game_df = pd.concat([game_df, pd.DataFrame([asdict(activity)])])
+        game_df = pd.concat([game_df, pd.DataFrame([asdict(activity)])], ignore_index=True)
 
+    game_df.reset_index()
     return game_df
 
 @pytest.fixture(scope="class")
@@ -33,6 +34,7 @@ def full_activities():
                                                      activity_id=uuid.uuid4())
         game_df = pd.concat([game_df, pd.DataFrame([asdict(activity)])])
 
+    game_df.reset_index()
     return game_df
 
 

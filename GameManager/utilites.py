@@ -37,7 +37,7 @@ class ActivityInfo:
     activity_outcome:Outcome|None = None
     activity_status:ActivityStatus = ActivityStatus.UNKNOWN
 
-PUZZLE_DATA_FIELDS:list[str] = ["Pid", "PuzzleID", "Fen", "Moves", "Rating", "GameUrl", "themes"]
+PUZZLE_DATA_FIELDS:list[str] = ["Pid", "PuzzleId", "FEN", "Moves", "Rating", "GameUrl", "themes"]
 
 class PuzzleEngine(ABC):
     """
