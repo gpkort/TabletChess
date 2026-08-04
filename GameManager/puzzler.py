@@ -35,8 +35,6 @@ class PuzzleEngineDF(PuzzleEngine):
             puzzle_df['themes'] = [[] for _ in range(len(puzzle_df))]
 
         if sorted(PUZZLE_DATA_FIELDS) != sorted(list(puzzle_df.columns)):
-            print(f"expected: {PUZZLE_DATA_FIELDS}")
-            print(f"actual: {list(puzzle_df.columns)}")
             raise ValueError("Incorrect format of puzzle_df.")
 
         if sorted(["ThemeID", "PuzzleID"]) != sorted(list(theme_map_df.columns)):
@@ -52,9 +50,7 @@ class PuzzleEngineDF(PuzzleEngine):
         return len(self.puzzle_df)
 
     def get_random_puzzle(self)->ActivityInfo:
-        print(self.puzzle_df.head())
         df_random = self.puzzle_df.sample(n=1)
-        print(df_random.head())
         return(self._data_row_to_activity(df_random.iloc[0].to_dict()))
 
     def get_puzzles(self, themes:list[Theme]|None=None, skill:Skill|None=None, limit:int=0)->list[ActivityInfo]:        

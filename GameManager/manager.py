@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Tuple
 from enum import Enum
 
 import tkinter as tk
@@ -10,7 +10,7 @@ from chess import (engine,
 import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
-from Display import BoardDisplay, DisplayInfo
+from Display import BoardDisplay, DisplayInfo, SaveResult
 from .puzzler import PuzzleEngine
 from .game_data import ActivityPersisterDF, SaveOption, ActivityPersisterSaveException
 from .utilites import ActivityInfo
@@ -66,7 +66,6 @@ class ChessManager:
         self._manager_state:ManagerState = ManagerState.IDLE
         self._current_activity:ActivityInfo|None = None 
         
-        
     def __del__(self):
         try:
             self._engine.quit()
@@ -108,6 +107,8 @@ class ChessManager:
         
         square:Square = data["square"]
 
+
+
         if self._selected_square is None:
             piece:chess.Piece | None = self._board.piece_at(square)            
             if piece is None or piece.color != self._board.turn:
@@ -147,14 +148,21 @@ class ChessManager:
     def handle_new_game(self):
         if self._manager_state == ManagerState.IDLE:
             self._board_display.update_board_display(self.reset_game())
+            self._manager_state = ManagerState.GAME_STARTED
         else:
             if len(self._board.move_stack) > 0:
                 self.save_current_activity()                
-        
     
     def handle_puzzle(self):
         puzzle:ActivityInfo = self._puzzle_engine.get_random_puzzle()
+        self._current_activity = puzzle
         self._board = Board(puzzle.FEN)
+        self._manager_state = ManagerState.PUZZLE_STARTED
+        self._player_color = self._board.turn
+        self._board_display.update_board_display(self.reset_game(reset_board=False))
+        game_txt:str = f"Puzzle: {puzzle.activity_name}, Themes: {puzzle.puzzle_themes}\n"
+        game_txt += f"{'White' if self._board.turn == chess.WHITE else "Black"} to move."
+        self._board_display.set_text(game_txt)
 
     def reset_game(self, reset_board:bool=True)->DisplayInfo:
         if reset_board:
@@ -181,13 +189,20 @@ class ChessManager:
                 piece_location[i] = piece.symbol()
         return piece_location
 
-    def save_current_activity(self, puzzle_id:str|None=None):
-        if self._board_display.get_player_yes_no("Save Game", "Do you want to save?"):
-            name:str|None = self._board_display.get_player_input("", "Name of game:")
-            if name is None or len(name) == 0:
-                self._board_display.set_player_alert("Status", "Save Canceled.")
-            else:
-                self._game_data.save_data(self._current_activity, SaveOption.OVERWRITE_FIRST)
+    def save_current_activity(self)->bool:
+        res:Tuple[SaveResult, str] = self._board_display.save_activity_prompt()
+        print(f"SAVE RESULT: {res}")
+        # if self._board_display.get_player_yes_no("Save Activity", "Do you want to save?"):
+        #     name:str|None = self._board_display.get_player_input("", "Name of game:")
+        #     if name is None or len(name) == 0:
+        #         self._board_display.set_player_alert("Status", "Save Canceled.")
+        #     else:
+        #         if self._current_activity is not None:
+        #             self._game_data.save_activity(self._current_activity, SaveOption.OVERWRITE_FIRST)
+        #             return True
+
+
+        return False
 
 # root = tk.Tk()
 # root.title("Chess")

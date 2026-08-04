@@ -24,7 +24,7 @@ class TkButtonInputHandler(EventDispatcher):
         game_button.grid(row=1, column=1)
         load_game_btn = tk.Button(self.frame, text="Load Game", command=lambda: self._dispatch(Event.LOAD_GAME))
         load_game_btn.grid(row=1, column=2)
-        self.game_combo.grid(row=1, column=3)
+        self.game_combo.grid(row=1, column=3)        
 
         puzzle_button = tk.Button(self.frame, text="New Puzzle", command=lambda: self._dispatch(Event.NEW_PUZZLE))
         puzzle_button.grid(row=2, column=1)
