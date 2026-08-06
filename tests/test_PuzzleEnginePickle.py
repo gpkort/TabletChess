@@ -50,4 +50,57 @@ class TestPuzzleEngineDataFrame:
         gp:PuzzleEngineDF = PuzzleEngineDF(TEST_DATAFRME, TEST_THEME_MAP_DF)
         pz:ActivityInfo = gp.get_random_puzzle()
         assert pz is not None
-        assert len(pz.puzzle_themes) > 0
+        idx:int = -1
+        for i, p in enumerate(TEST_DATA):
+            if pz.lichess_puzzle_id == p["PuzzleId"]:
+                idx = i
+                break
+
+        assert idx != -1
+
+    def test_random_moves(self):
+        gp:PuzzleEngineDF = PuzzleEngineDF(TEST_DATAFRME, TEST_THEME_MAP_DF)
+        pz:ActivityInfo = gp.get_random_puzzle()
+        assert pz is not None
+        pd:dict[str, Any] = {}
+        for p in TEST_DATA:
+            if pz.lichess_puzzle_id == p["PuzzleId"]:
+                pd = p
+                break
+
+        assert len(pd.keys()) != 0
+        assert pz.puzzle_moves is not None
+        assert str(pd["Moves"]).split(" ") == pz.puzzle_moves
+
+    def test_get_themes(self):
+        gp:PuzzleEngineDF = PuzzleEngineDF(TEST_DATAFRME, TEST_THEME_MAP_DF)
+        theme_ids:list[str] = []
+
+        for t in TEST_THEME_MAP:
+            if t["PuzzleID"] == 19:
+                theme_ids.append(str(Theme(t["ThemeID"])))
+
+
+        tbi:list[str] = gp.get_themes_by_id(19)
+        assert sorted(theme_ids) == sorted(tbi)
+
+    def test_random_themes(self):
+            gp:PuzzleEngineDF = PuzzleEngineDF(TEST_DATAFRME, TEST_THEME_MAP_DF)
+            pz:ActivityInfo = gp.get_random_puzzle()
+            assert pz is not None
+
+            theme_ids:list[str] = []
+            id:int = -1
+
+            for p in TEST_DATA:
+                if pz.lichess_puzzle_id == p["PuzzleId"]:
+                    id = p["Pid"]
+
+            assert id != -1
+
+            for t in TEST_THEME_MAP:
+                if t["PuzzleID"] == id:
+                    theme_ids.append(str(Theme(t["ThemeID"])))            
+            
+            tbi:list[str] = gp.get_themes_by_id(id)
+            assert sorted(theme_ids) == sorted(tbi)

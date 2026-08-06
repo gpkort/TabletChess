@@ -42,6 +42,7 @@ class PuzzleEngineDF(PuzzleEngine):
         
         self.puzzle_df:pd.DataFrame = puzzle_df.copy()
         self.theme_map_df:pd.DataFrame = theme_map_df.copy()
+        self.theme_df = DEFAULT_THEMES_DATAFRAME
 
         if shuffle_puzzles:
             self.puzzle_df.sample(frac=1).reset_index(drop=True, inplace=True)
@@ -77,28 +78,24 @@ class PuzzleEngineDF(PuzzleEngine):
         return t_map
 
     def get_theme_to_puzzle_map(self, themes:list[Theme]|None=None)->dict[Theme, list[int]]:
-        t_df:pd.DataFrame = pd.DataFrame()
         t_map:dict[Theme, list[int]] = {}
 
-        if themes is not None and len(themes) > 0:
-            t_df = self.theme_map_df[self.theme_map_df['ThemeID'].isin([t.value for t in themes])]
-        else:
-            t_df = self.theme_map_df
+        if themes is None or len(themes) == 0:
+           themes = [Theme(int(t)) for t in self.theme_df["TID"].to_list()]
 
-        for row in t_df.itertuples(index=False):
-            theme:Theme = Theme(row.ThemeID)
-            if t_map.get(theme) is None:        
-                t_map[theme] = []
-            t_map[theme].append(row.PuzzleID)  #type: ignore            
+        for t in themes:
+             df:pd.DataFrame = self.theme_map_df[self.theme_map_df["ThemeID"] == int(t.value)]
+             t_map[t] = df["PuzzleID"].to_list()  
         
         return t_map
 
-    def _get_themes_by_id(self, pid:int)->list[str]:
+    def get_themes_by_id(self, pid:int)->list[str]:
         themes:list[str] = []
-        tids:pd.Series = self.theme_map_df.loc[self.theme_map_df["PuzzleID"] == pid, "ThemeID" ]
+        # tids:pd.Series = self.theme_map_df.loc[self.theme_map_df["PuzzleID"] == pid, "ThemeID" ]
+        df:pd.DataFrame = self.theme_map_df[self.theme_map_df["PuzzleID"] == pid] 
 
-        for _, value in tids.items():
-            themes.append(str(value))
+        for tid in df["ThemeID"].to_list():
+             themes.append(str(Theme(int(tid))))
 
         return themes
 
@@ -110,7 +107,7 @@ class PuzzleEngineDF(PuzzleEngine):
                     puzzle_moves=str(row["Moves"]).split(" "),
                     puzzle_rating=int(row["Rating"]),
                     activity_url=str(row["GameUrl"]),
-                    puzzle_themes=self._get_themes_by_id(int(row["Pid"]))
+                    puzzle_themes=self.get_themes_by_id(int(row["Pid"]))
         
                 )
 

@@ -7,7 +7,8 @@ from .utilites import (PuzzleEngine,
                        create_puzzle_pickle,
                        ActivityPersisterSaveException,
                        PUZZLE_DATA_FIELDS,
-                       ActivityInfo
+                       ActivityInfo,
+                       create_openings_pickle
                        )
 
 from .constants import (STARTING_FEN,

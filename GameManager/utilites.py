@@ -4,9 +4,12 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import Any, Tuple
 import uuid
+from os import walk, path
+from io import StringIO
 
 import pandas as pd
-from chess import Outcome
+from chess import Outcome, Board
+import chess.pgn
 
 from .constants import Theme, Skill, SKILL_BUCKETS
 
@@ -25,8 +28,8 @@ class ActivityInfo:
     FEN:str
     activity_name:str
     activity_id:uuid.UUID | None = None
-    lichess_puzzle_id:str|None=None
-    puzzle_moves:list[str]|None = None
+    lichess_puzzle_id:str = ""
+    puzzle_moves:list[str] = field(default_factory=list)
     puzzle_rating:int|None = None
     activity_url:str|None = None
     puzzle_themes:list[str] = field(default_factory=list)
@@ -142,9 +145,35 @@ def create_puzzle_pickle(connection:Connection,
     puz_df.to_pickle(puzzle_pickle_path)
     th_df.to_pickle(theme_pickle_path)
 
-def create_themes_pickle(self, connection:Connection, pickle_path:str):
+def create_themes_pickle( connection:Connection, pickle_path:str):
     df:pd.DataFrame = pd.read_sql_query("SELECT TID, theme FROM Theme", connection)
     df.to_pickle(pickle_path)
+
+def create_openings_pickle(dir_path:str, output_file:str):
+    """
+    use this for lichess openings database that is comprised of multiple tab delimited files
+    the files have three columns: 'eco', 'name', 'pgn'
+    """
+
+    df:pd.DataFrame = pd.DataFrame(data=None, columns=['eco', 'name', 'pgn'])
+    for root, _, files in walk(dir_path):
+        for file in files:
+             df = pd.concat([df, pd.read_csv(path.join(root, file), delimiter='\t')])
+
+    pgn:list[str] = df['pgn'].to_list()
+    ucis:list[list[str]] = []
+    board:Board = Board()    
+    
+    for p in pgn:
+        game:chess.pgn.Game|None = chess.pgn.read_game(StringIO(str(p)))
+        if game:
+            ucis.append([m.uci() for m in game.mainline_moves()])
+
+    df["uci"] = ucis
+    df["game_hash"] = pd.util.hash_array(df['uci'].to_numpy())
+
+    df.to_pickle(output_file)
+
 
 
 

@@ -84,7 +84,7 @@ class BoardDisplay(EventDispatcher):
 
     def save_activity_prompt(self)->Tuple[SaveResult, str]:
         result:SaveResult = SaveResult.UNKNOWN
-        activity_name:str = ""
+        activity_name:str  = ""
 
         res:bool|None = messagebox.askyesnocancel("Save, Don't save, Cancel", "Do you want to quit game and Save, quit and not Save, or cancel")
         if res is None:
@@ -93,7 +93,9 @@ class BoardDisplay(EventDispatcher):
             result = SaveResult.SAVE if res else SaveResult.NO_SAVE
 
         if res == SaveResult.SAVE:
-            simpledialog.askstring("Activity Name to Save", "Blank will not be save!")
+            tname:str | None = simpledialog.askstring("Activity Name to Save", "Blank will not be save!")
+            activity_name = tname if tname is not None else ""
+            result = SaveResult.SAVE if tname is not None else SaveResult.NO_SAVE            
 
         return (result, activity_name)
 
@@ -148,7 +150,11 @@ class BoardDisplay(EventDispatcher):
         self._text_box.config(state=tk.DISABLED)
 
     def append_text(self, text:str):
-        ...
+        self._text_box.config(state=tk.NORMAL)
+        current_txt:str = self._text_box.get("1.0", tk.END)
+        self._text_box.delete("1.0", tk.END)
+        self._text_box.insert("1.0", (current_txt+"\n"+text))
+        self._text_box.config(state=tk.DISABLED)
 
     def _initialize(self, board_size:int, width:int):
         """
