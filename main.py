@@ -5,7 +5,8 @@ import pandas as pd
 from GameManager import (IMAGE_MAP, 
                          ChessManager,
                          PuzzleEngineDF,
-                         ActivityPersisterDF)
+                         ActivityPersisterDF,
+                         OpeningLibraryDF)
 
 
 PICKLE_DIR = "C:\\Users\\gkorthuis\\source\\MyChess"
@@ -16,8 +17,9 @@ SCREEN_HEIGHT = 600
 # SCREEN_HEIGHT = 768
 
 pe_pk:PuzzleEngineDF = PuzzleEngineDF(pd.read_pickle("puzzle_pk"), pd.read_pickle("theme_pk"))
+opening:OpeningLibraryDF = OpeningLibraryDF(pd.read_pickle('openings.pkl'))
 cm:ChessManager = ChessManager(SCREEN_WIDTH, SCREEN_HEIGHT, 480, ENGINE, IMAGE_MAP, 
-                               pe_pk, ActivityPersisterDF(activity_df=None) )
+                               pe_pk, ActivityPersisterDF(activity_df=None), opening )
 
 def main():
     global cm

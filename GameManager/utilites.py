@@ -2,13 +2,13 @@ from sqlite3 import Connection
 from enum import Enum
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+import hashlib
 import uuid
 from os import walk, path
 from io import StringIO
 
 import pandas as pd
-from chess import Outcome, Board
+from chess import Outcome
 import chess.pgn
 
 from .constants import Theme, Skill, SKILL_BUCKETS
@@ -24,7 +24,10 @@ class ActivityPersisterSaveException(Exception):
     pass
 
 @dataclass
-class ActivityInfo:        
+class ActivityInfo:
+    """
+    Dataclass that represents an activity i,e, game or puzzle
+    """
     FEN:str
     activity_name:str
     activity_id:uuid.UUID | None = None
@@ -158,25 +161,23 @@ def create_openings_pickle(dir_path:str, output_file:str):
     df:pd.DataFrame = pd.DataFrame(data=None, columns=['eco', 'name', 'pgn'])
     for root, _, files in walk(dir_path):
         for file in files:
-             df = pd.concat([df, pd.read_csv(path.join(root, file), delimiter='\t')])
+            df = pd.concat([df, pd.read_csv(path.join(root, file), delimiter='\t')])
 
     pgn:list[str] = df['pgn'].to_list()
-    ucis:list[list[str]] = []
-    board:Board = Board()    
-    
+    ucis:list[list[str]] = []        
+
     for p in pgn:
         game:chess.pgn.Game|None = chess.pgn.read_game(StringIO(str(p)))
         if game:
             ucis.append([m.uci() for m in game.mainline_moves()])
 
+    def hash_game(g:list[str])->str:
+        hasher = hashlib.sha256()
+        for s in g:
+            hasher.update(s.encode('utf-8'))
+        return hasher.hexdigest()
+    
     df["uci"] = ucis
-    df["game_hash"] = pd.util.hash_array(df['uci'].to_numpy())
-
+    df["game_hash"] = df["uci"].apply(hash_game)
+    print(df.head())
     df.to_pickle(output_file)
-
-
-
-
-
-
-

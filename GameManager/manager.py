@@ -1,26 +1,32 @@
-from typing import Any, Tuple
+# pylint: disable=missing-module-docstring
+
+from typing import Any
 from enum import Enum
 from time import sleep
 
 import tkinter as tk
-import pandas as pd
-from chess import (engine, 
-                   Square, 
-                   Board, 
+from chess import (engine,
+                   Square,
+                   Board,
                    Piece)
 import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
 from Display import BoardDisplay, DisplayInfo, SaveResult
 from .puzzler import PuzzleEngine
-from .game_data import ActivityPersisterDF, SaveOption, ActivityPersisterSaveException
+from .game_data import ActivityPersisterDF, SaveOption
 from .utilites import ActivityInfo
+from .openings import OpeningLibraryDF
 
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
 
 class ManagerState(Enum):
+    """
+    States that ChessManager can
+    be in
+    """
     IDLE = 0
     GAME_STARTED = 1
     PUZZLE_STARTED = 2
@@ -28,6 +34,9 @@ class ManagerState(Enum):
 
 
 class ChessManager:
+    """
+    Controller class for chess game
+    """
     WINDOW_CLOSE:str = "WM_DELETE_WINDOW"
 
     def __init__(self, display_width:int, display_height, board_size: int,
@@ -35,15 +44,21 @@ class ChessManager:
                  pieces_map:dict[str, str],
                  puzzle_engine:PuzzleEngine,
                  game_data:ActivityPersisterDF,
+                 opening_library: OpeningLibraryDF,
                  *,
                  is_single_player:bool = True,
                  single_player_is_white:bool = True,
                  engine_skill_level:int = 0):
-        
+
         self._root = tk.Tk()
         self._root.title("Chess")
-        self._board_display:BoardDisplay = BoardDisplay(self._root, display_width, display_height, board_size, pieces_map)
-        self._board_display.register_handler(EventHandler(Event.SQUARE_CLICK, self.handle_square_selection))
+        self._board_display:BoardDisplay = BoardDisplay(self._root, 
+                                                        display_width, 
+                                                        display_height, 
+                                                        board_size, 
+                                                        pieces_map)
+        self._board_display.register_handler(EventHandler(Event.SQUARE_CLICK, 
+                                                          self.handle_square_selection))
         self._root.protocol(self.WINDOW_CLOSE, self.on_closing)
 
         self._game_data:ActivityPersisterDF = game_data
@@ -56,7 +71,8 @@ class ChessManager:
         self._limit = engine.Limit(time=0.5)
         self._board:Board = Board()
         self._puzzle_engine:PuzzleEngine = puzzle_engine
-                
+        self._opening_library:OpeningLibraryDF = opening_library
+
         self._is_single_player:bool = is_single_player
         self._player_color:chess.Color = chess.WHITE if single_player_is_white else chess.BLACK
         self._selected_square:chess.Square|None = None
@@ -65,8 +81,8 @@ class ChessManager:
         self._legal_squares:list[chess.Square] = []
 
         self._manager_state:ManagerState = ManagerState.IDLE
-        self._current_activity:ActivityInfo|None = None 
-        
+        self._current_activity:ActivityInfo|None = None
+
     def __del__(self):
         try:
             self._engine.quit()
@@ -75,6 +91,9 @@ class ChessManager:
             print(e)
 
     def start(self):
+        """
+        starts main loop for display manager
+        """
         self._root.mainloop()
 
     def on_closing(self):
@@ -84,16 +103,16 @@ class ChessManager:
         self._engine.close()
         self._root.destroy()
 
-    def button_handler(self, event:Event, data:dict[str, Any]):
+    def button_handler(self, event:Event, _:dict[str, Any]):
         """
         Handles button events
         """ 
         if event == Event.NEW_GAME:
             self.handle_new_request(event)
-            
+
         if event == Event.NEW_PUZZLE:       
             self.handle_new_request(event)
-    
+
     def handle_square_selection(self, _:Event, data:dict[str, Any]):
         """
         Either select a piece or move a piece if it's your turn and you clicked a 
@@ -102,10 +121,10 @@ class ChessManager:
         Args:
             square (chess.Square): square that user clicked on.
         """
-                
+
         if self._board.is_game_over() or self._board.turn != self._player_color:
             return
-        
+
         square:Square = data["square"]
 
         if self._selected_square == square:
@@ -140,16 +159,22 @@ class ChessManager:
                     self.puzzle_move_response()
 
     def handle_new_request(self, event:Event):
+        """
+        Event handler for any new button
+
+        Args:
+            event (Event): button name
+        """
         if len(self._board.move_stack) > 0:
             res:SaveResult = self.save_current_activity()
 
             if res != SaveResult.CANCEL:
                 return
-            
-        if event == Event.NEW_GAME:            
+
+        if event == Event.NEW_GAME:
             self.launch_new_game()
         elif event == Event.NEW_PUZZLE:
-            self.launch_new_puzzle()            
+            self.launch_new_puzzle()
 
     def launch_new_game(self):
         self._board = Board()
@@ -169,7 +194,7 @@ class ChessManager:
                 ...
         except chess.InvalidMoveError as e:
             # TODO: handle error
-            ...
+            print(e)
 
         self._player_color = self._board.turn
         self._board_display.update_board_display(self.reset_game())
@@ -185,9 +210,9 @@ class ChessManager:
 
     def game_move_response(self):
         if not self.check_status():
-            #do sumpin bigly
+            # TODO: add game over
             return
-
+        # TODO: check opening
         # print(self._engine.analyse(self._board, engine.Limit(time=0.5)))
         pr:engine.PlayResult = self._engine.play(self._board, self._limit)
         # print(f"Play Result = {pr}")
@@ -216,7 +241,6 @@ class ChessManager:
                     #do sumpin bigly
                 else:
                     mess = "Correct, keep going!"
-                    print(self._current_activity.puzzle_moves[len(self._board.move_stack)]) #type: ignore
                     self.move_opponent(chess.Move.from_uci(self._current_activity.puzzle_moves[len(self._board.move_stack)]))  #type: ignore
             self._board_display.append_text(mess)
             self._update_display_current()
@@ -224,7 +248,6 @@ class ChessManager:
             self._board_display.append_text(f"ERROR: {ie}")
 
     def move_opponent(self, move:chess.Move):
-        
         if self._board.is_legal(move):
             self._board.push(move)
             self._previous_square = move.from_square

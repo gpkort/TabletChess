@@ -41,20 +41,24 @@ def full_activities():
 class TestActivityPersisterDF:
     """Unit tests for activity
     """
+    # pylint: disable=redefined-outer-name
     def test_init_with_df(self, basic_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(basic_activities)
         assert gp.activity_count == 10
 
+    # pylint: disable=redefined-outer-name
     def test_init(self):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=None)
         assert gp.activity_count == 0
    
+    # pylint: disable=redefined-outer-name
     def test_get_games_puzzles(self, basic_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=basic_activities)
         activities:list[ActivityInfo] = gp.get_activities()
 
         assert len(activities) == gp.activity_count
-
+        
+    # pylint: disable=redefined-outer-name
     def test_save_game_with_room(self, basic_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=basic_activities)
         game_name:str = "test_save_game_with_room"
@@ -68,6 +72,7 @@ class TestActivityPersisterDF:
         games:list[ActivityInfo] = gp.get_activities()
         assert len([gi for gi in games if gi.activity_name == game_name ]) == 1
 
+    # pylint: disable=redefined-outer-name
     def test_save_game_no_room_no_overwrite(self, full_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=full_activities)
         activity:ActivityInfo = ActivityInfo(activity_name="game_name",
@@ -78,6 +83,7 @@ class TestActivityPersisterDF:
         with pytest.raises(ActivityPersisterSaveException):
             gp.save_activity(activity, SaveOption.NO_OVERWITE)
 
+    # pylint: disable=redefined-outer-name
     def test_save_game_no_room_overwrite_first(self, full_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=full_activities)
         game_name:str = "overwrite_first"
@@ -92,6 +98,7 @@ class TestActivityPersisterDF:
         assert not any(g.activity_name == "activity_0" for g in gp.get_activities())
         assert any(g.activity_name == game_name for g in gp.get_activities())
 
+    # pylint: disable=redefined-outer-name
     def test_save_game_no_room_overwrite_last(self, full_activities):
         gp:ActivityPersisterDF = ActivityPersisterDF(activity_df=full_activities)
         game_name:str = "overwrite_first"
