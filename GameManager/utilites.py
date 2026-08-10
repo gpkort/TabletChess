@@ -179,5 +179,5 @@ def create_openings_pickle(dir_path:str, output_file:str):
     
     df["uci"] = ucis
     df["game_hash"] = df["uci"].apply(hash_game)
-    print(df.head())
+    
     df.to_pickle(output_file)

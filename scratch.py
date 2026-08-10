@@ -4,11 +4,13 @@ import pandas as pd
 from os import path, walk
 import pickle
 from io import StringIO
+import tkinter as tk
 
-from GameManager import PuzzleEngineDF, ActivityInfo, Theme, create_openings_pickle
+from GameManager import IMAGE_MAP, ActivityInfo, Theme, create_openings_pickle
 import chess
 import chess.pgn
 from chess import Board
+from Display import ChessBoard
 
 
 
@@ -23,7 +25,15 @@ CHUNK_SIZE = 200000
 
 
 if __name__ == "__main__":
-    create_openings_pickle("openings", 'openings.pkl')
-    open_df:pd.DataFrame = pd.read_pickle('openings.pkl')
-    
-    print(open_df.head(5).to_dict('records'))
+    root = tk.Tk()
+    root.title("Chess")
+    root.geometry("480x600")
+    # frame:tk.Frame = tk.Frame(root, width=480, height=600)
+    # frame.pack(fill="both", expand=True)
+    canvas:tk.Canvas = tk.Canvas(root, width=480, height=180,  borderwidth=5)
+    canvas.pack(fill="both", expand=True)
+    ChessBoard(canvas, IMAGE_MAP)
+    # frame.update()
+    root.update() 
+
+    root.mainloop()
