@@ -10,7 +10,7 @@ from GameManager import IMAGE_MAP, ActivityInfo, Theme, create_openings_pickle
 import chess
 import chess.pgn
 from chess import Board
-from Display import ChessBoard
+from Display import ChessBoard, ChessBoardInfo
 
 
 
@@ -26,14 +26,13 @@ CHUNK_SIZE = 200000
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Chess")
-    root.geometry("480x600")
-    # frame:tk.Frame = tk.Frame(root, width=480, height=600)
-    # frame.pack(fill="both", expand=True)
-    canvas:tk.Canvas = tk.Canvas(root, width=480, height=180,  borderwidth=5)
+    root.title("Chess")    
+    canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
     canvas.pack(fill="both", expand=True)
-    ChessBoard(canvas, IMAGE_MAP)
-    # frame.update()
+    cb:ChessBoard = ChessBoard(canvas, IMAGE_MAP)
+    bi:ChessBoardInfo = ChessBoardInfo(selected_square=10)
+    cb.update_board_display(bi)
+    
     root.update() 
 
     root.mainloop()

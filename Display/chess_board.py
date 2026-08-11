@@ -16,8 +16,16 @@ SELECTED_SQUARE:Tuple[int, int, int] = (255, 255, 0)
 
 LIGHT_SQUARE_COLOR = f"#{LIGHT_SQUARE[0]:x}{LIGHT_SQUARE[1]:x}{LIGHT_SQUARE[2]:x}"
 DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:x}{DARK_SQUARE[1]:x}{DARK_SQUARE[2]:x}"
-SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:x}{SELECTED_SQUARE[1]:x}{SELECTED_SQUARE[2]:X}"
+# SELECTED_SQUARE_COLOR = f"#{SELECTED_SQUARE[0]:x}{SELECTED_SQUARE[1]:x}{SELECTED_SQUARE[2]:X}"
+SELECTED_SQUARE_COLOR:str ="#FFFF00"
 
+@dataclass
+class ChessBoardInfo:
+    selected_square:chess.Square|None = None
+    previous_square:chess.Square|None = None
+    target_square:chess.Square|None = None
+    legal_squares:list[chess.Square] = field(default_factory=list)
+    piece_location:dict[chess.Square, str] = field(default_factory=dict)
 
 class ChessBoard(EventDispatcher):
     """Tkinter display for chess game """
@@ -26,29 +34,30 @@ class ChessBoard(EventDispatcher):
     def __init__(self, canvas:tk.Canvas, pieces_map:dict[str, str]):                
 
         super().__init__() 
+        self._canvas = canvas
+        self._square_size:int = int(canvas.cget("width")) // 8   
 
-        self._canvas:tk.Canvas = canvas       
-        self._square_size:int = int(self._canvas.cget("width")) // 64 #64 squares on a chess board    
-        print(self._square_size)            
+        #A multi-dimmension array to  represent board list[file][rank]
+        self._board_display:dict[chess.Square, int] = {}
         
         self._image_map:dict[str, ImageTk.PhotoImage] = self.load_pieces(pieces_map )
         self._initialize()
 
-        self._highlight_square:chess.Square|None = None
-        self._dotted_squares:list[chess.Square] = []
-        self._to_from_squares:Tuple[chess.Square, chess.Square] | None = None
+        self._selected_square:Tuple[chess.Square|None, int|None] = (None, None)
+        self._dotted_squares:list[Tuple[chess.Square|None, int|None]] = []
+        self._to_from_squares:Tuple[Tuple[chess.Square|None, int|None],Tuple[chess.Square|None, int|None]] = ((None, None), (None, None))
 
     @property
     def highlighted_square(self)->chess.Square|None:
-         return self._highlight_square
+         return self._selected_square[0]
          
     @property
-    def dotted_squares(self)->list[chess.Square]:
-        return self._dotted_squares.copy()
+    def dotted_squares(self)->list[chess.Square|None]:
+        return [val[0] for val in self._dotted_squares]
 
     @property
-    def to_from_squares(self)->Tuple[chess.Square, chess.Square] | None:
-         return (self._to_from_squares[0], self._to_from_squares[1]) if self._to_from_squares is not None else None
+    def to_from_squares(self)->Tuple[chess.Square|None, chess.Square|None] | None:
+         return (self._to_from_squares[0][0], self._to_from_squares[1][0])
 
     def _left_mouse_click(self, event:tk.Event):
             """
@@ -96,22 +105,61 @@ class ChessBoard(EventDispatcher):
             Raises:
                 Exception if self._board_display was initialized with 64 values
             """
-            self._board_display = []
-            for f in range(8):
-                file_list:list[int]  = []
-                for r in range(8):
-                    color:str = LIGHT_SQUARE_COLOR if (r + f) % 2 == 0 else DARK_SQUARE_COLOR
-                    x0:int = f * self._square_size
-                    y0:int = r * self._square_size
-                    x1:int = x0 + self._square_size
-                    y1:int = y0 + self._square_size
+            self._board_display = {}
+            for sq in chess.SQUARES:
+                 f = chess.square_file(sq)
+                 r = chess.square_rank(sq)
+                 color:str = LIGHT_SQUARE_COLOR if (r + f) % 2 == 0 else DARK_SQUARE_COLOR
+                 x0:int = f * self._square_size
+                 y0:int = r * self._square_size
+                 x1:int = x0 + self._square_size
+                 y1:int = y0 + self._square_size
+                 self._board_display[sq] = self._canvas.create_rectangle(x0, y0, x1, y1, fill=color, width=3)
+                 
+            # for f in range(8):
+            #     for r in range(8):
+            #         color:str = LIGHT_SQUARE_COLOR if (r + f) % 2 == 0 else DARK_SQUARE_COLOR
+            #         x0:int = f * self._square_size
+            #         y0:int = r * self._square_size
+            #         x1:int = x0 + self._square_size
+            #         y1:int = y0 + self._square_size
                     
-                    file_list.append(self._canvas.create_rectangle(x0, y0, x1, y1, fill=color))
-                self._board_display.append(file_list)
+            #         self._board_display[].append(self._canvas.create_rectangle(x0, y0, x1, y1, fill=color, width=3))
+            #     self._board_display.append(file_list)
 
-            print(f"{len(self._board_display)} X {len(self._board_display[0])}")
-           
-            # for file in self._board_display:
-            #      print(" ".join([str(i) for i in file]))
+    def update_board_display(self, display_info:ChessBoardInfo):
+            """
+            Iterates through squares and updates visual
+            representation
+            """
+
+            if self._selected_square[1] is not None:
+                self._canvas.delete(self._selected_square[1])
+            self._selected_square = (None, None)
+
+            if display_info.selected_square is not None:
+                coords:list[float] = self._canvas.coords(self._board_display[display_info.selected_square])
+                self._selected_square = (display_info.selected_square,
+                                         self._canvas.create_rectangle(coords, fill="", outline=SELECTED_SQUARE_COLOR,width=3))
+                      
+                           
+                           
+    
+            # for key, val in self._board_display.items():
+            #     val.clear()
+    
+            # for square, piece_str in display_info.piece_location.items():
+            #     self._board_display[square].set_image(self._image_map[piece_str], True)
+    
+            # if display_info.selected_square:
+            #     self._board_display[display_info.selected_square].selected = True
+            # if display_info.previous_square:
+            #     self._board_display[display_info.previous_square].show_move = True
+            # if display_info.target_square:
+            #     self._board_display[display_info.target_square].show_move = True
+            # for legal in display_info.legal_squares:
+            #     self._board_display[legal].legal = True
+    
+            # self.update_root_display()
                 
     
