@@ -22,16 +22,24 @@ OPENING_BOOK = "komodo.bin"
 CHUNK_SIZE = 200000
 
 
-
-
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Chess")    
     canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
     canvas.pack(fill="both", expand=True)
     cb:ChessBoard = ChessBoard(canvas, IMAGE_MAP)
-    bi:ChessBoardInfo = ChessBoardInfo(selected_square=10)
+    bi:ChessBoardInfo = ChessBoardInfo(selected_square=chess.B3,
+                                       previous_square=chess.H8, target_square=chess.H1,
+                                       legal_squares=[s for s in range(40,48)],
+                                       piece_location={chess.A4:"p", 
+                                                       chess.B4:"P",
+                                                       chess.C4:"k",
+                                                       chess.D4:"K",
+                                                       chess.E4:"q",
+                                                       chess.F4:"Q"})
+    
     cb.update_board_display(bi)
+    cb.show_algebraic(True)
     
     root.update() 
 
