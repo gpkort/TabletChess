@@ -6,11 +6,12 @@ import pickle
 from io import StringIO
 import tkinter as tk
 
-from GameManager import IMAGE_MAP, ActivityInfo, Theme, create_openings_pickle
+from GameManager import IMAGE_MAP, ChessGameManager
 import chess
 import chess.pgn
 from chess import Board
 from Display import ChessBoard, ChessBoardInfo
+from Input import EventHandler, Event
 
 
 
@@ -27,20 +28,9 @@ if __name__ == "__main__":
     root.title("Chess")    
     canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
     canvas.pack(fill="both", expand=True)
-    cb:ChessBoard = ChessBoard(canvas, IMAGE_MAP)
-    bi:ChessBoardInfo = ChessBoardInfo(selected_square=chess.B3,
-                                       previous_square=chess.H8, target_square=chess.H1,
-                                       legal_squares=[s for s in range(40,48)],
-                                       piece_location={chess.A4:"p", 
-                                                       chess.B4:"P",
-                                                       chess.C4:"k",
-                                                       chess.D4:"K",
-                                                       chess.E4:"q",
-                                                       chess.F4:"Q"})
-    
-    cb.update_board_display(bi)
-    cb.show_algebraic(True)
-    
+    cb:ChessBoard = ChessBoard(canvas, IMAGE_MAP, show_algebraic=True)
+    cgm:ChessGameManager = ChessGameManager(cb) 
+    cgm.new_game()   
     root.update() 
 
     root.mainloop()

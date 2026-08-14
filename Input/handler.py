@@ -22,7 +22,7 @@ class EventHandler:
     handler: Callable[[Event, dict[str, Any]], None]
     blocking: bool = False
 
-class EventDispatcher(ABC):
+class EventDispatcher():
     def __init__(self):
         self._event_handlers: dict[int, EventHandler] = {}
         self._lock = threading.Lock()

@@ -1,4 +1,4 @@
-__all__ = ["constants", "puzzler", "manager", "utilites", "game_data", "openings"]
+__all__ = ["constants", "puzzler", "manager", "utilites", "game_data", "openings", "game_manager"]
 
 from .game_data import ActivityPersisterDF
 from .puzzler import  PuzzleEngineDF, DEFAULT_THEMES_DATAFRAME
@@ -16,6 +16,7 @@ from .constants import (STARTING_FEN,
                         Skill,
                         Theme,
                         SKILL_BUCKETS)
-from .manager import ChessManager
+from .manager import ChessManager, ActivityManager
 
 from .openings import OpeningLibrary, OpeningLibraryDF
+from .game_manager import ChessGameManager

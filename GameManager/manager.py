@@ -3,6 +3,7 @@
 from typing import Any
 from enum import Enum
 from time import sleep
+from abc import ABC, abstractmethod
 
 import tkinter as tk
 from chess import (engine,
@@ -12,7 +13,7 @@ from chess import (engine,
 import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
-from Display import BoardDisplay, DisplayInfo, SaveResult
+from Display import BoardDisplay, DisplayInfo, SaveResult, ChessBoard
 from .puzzler import PuzzleEngine
 from .game_data import ActivityPersisterDF, SaveOption
 from .utilites import ActivityInfo
@@ -21,6 +22,15 @@ from .openings import OpeningLibraryDF
 ENGINE:str = r"stockfish-windows-x86-64-avx2.exe"
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
+
+class ActivityManager(ABC):
+    def __init__(self, display_board:ChessBoard):
+        self._display_board = display_board
+
+    @abstractmethod
+    def on_square_click(self, event:Event, data:dict[str, Any]):
+        pass
+
 
 class ManagerState(Enum):
     """

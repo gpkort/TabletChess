@@ -2,6 +2,8 @@ from typing import Tuple
 from PIL import Image, ImageTk
 import numpy as np
 
+from chess import Piece
+
 
 def create_transparent_image(size:int, color:Tuple[float,...] = (0, 255, 0, 64)) -> ImageTk.PhotoImage:
     img = Image.new("RGBA", (size, size), color)
@@ -33,3 +35,12 @@ def load_pieces(pieces_map:dict[str, str], size:int,) -> dict[str, ImageTk.Photo
         images[k] = ImageTk.PhotoImage(Image.fromarray(pixs))
 
     return images
+
+def load_pieces_to_map(pieces_map:dict[str, str], size:int,) -> dict[Piece, ImageTk.PhotoImage]:
+    images:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map, size)
+    ret:dict[Piece, ImageTk.PhotoImage] = {}
+
+    for k, v in images.items():
+        ret[Piece.from_symbol(k)] = v
+    return ret
+
