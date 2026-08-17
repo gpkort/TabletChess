@@ -3,38 +3,32 @@ from typing import Any
 from chess import (Board, 
                    Piece, 
                    Square,
-                   SQUARES)
+                   SQUARES,
+                   Move)
 
-from Display.chess_board import ChessBoard, ChessBoardInfo, SquareState
+from Display.chess_board import SmartChessBoard, ChessBoardInfo
 from GameManager import ActivityManager
 from Input import Event, EventHandler
 
 class ChessGameManager(ActivityManager):
-    def __init__(self, chess_board: ChessBoard):
+    def __init__(self, chess_board: SmartChessBoard):
         super().__init__(chess_board)
-        self._game_board:Board = Board()
-
-        self._display_board.register_handler(EventHandler(Event.SQUARE_CLICK, self.on_square_click))
-
+        self._board:SmartChessBoard = chess_board
+        self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self.on_square_click))
 
     def on_square_click(self, event:Event, data:dict[str, Any]):
-        print(data)
         square:Square = data["square"]
-        square_state:SquareState = data["state"]
+        selected:bool = data["selected"]
 
-        if square_state.selected:
-            self._legal_squares = []
+        if selected:
             self._display_board.clear_board_display(clear_pieces=False)
             return        
         else:
             piece:Piece | None = self._board.piece_at(square)            
-            if piece is None or piece.color != self._board.turn:
-                return
-            self._legal_squares = [m.to_square for m in self._board.legal_moves if m.from_square == square]
-            self._selected_square = square
-
-            self._update_display_current()
-            return        
+            if piece is not None and piece.color != self._board.turn:    
+                move:Move = Move
+            
+                  
         else:
             if square in self._legal_squares:
                 self._board.push(chess.Move(self._selected_square, square))                
@@ -52,11 +46,4 @@ class ChessGameManager(ActivityManager):
         self._board = Board()
         self._display_board.update_board_display(ChessBoardInfo(piece_location=self.get_piece_location()))
 
-    def get_piece_location(self)->dict[Square, str]:
-            piece_location:dict[Square, str] = {}
-            for i in SQUARES:
-                piece:Piece|None = self._board.piece_at(i)
     
-                if piece:
-                    piece_location[i] = piece.symbol()
-            return piece_location
