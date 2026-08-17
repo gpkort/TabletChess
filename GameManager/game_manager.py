@@ -6,7 +6,7 @@ from chess import (Board,
                    SQUARES,
                    Move)
 
-from Display.chess_board import SmartChessBoard, ChessBoardInfo
+from Display import SmartChessBoard
 from GameManager import ActivityManager
 from Input import Event, EventHandler
 
@@ -24,26 +24,33 @@ class ChessGameManager(ActivityManager):
             self._display_board.clear_board_display(clear_pieces=False)
             return        
         else:
-            piece:Piece | None = self._board.piece_at(square)            
-            if piece is not None and piece.color != self._board.turn:    
-                move:Move = Move
-            
-                  
-        else:
-            if square in self._legal_squares:
-                self._board.push(chess.Move(self._selected_square, square))                
-                self._selected_square = None
-                self._previous_square = None
-                self._target_square = None
-                self._legal_squares.clear()
+            ss:Square | None = self._board.get_selected_square()
+            piece:Piece | None = self._board.piece_at(square) 
 
-                if self._manager_state == ManagerState.GAME_STARTED:
-                    self.game_move_response()
-                elif self._manager_state == ManagerState.PUZZLE_STARTED:
-                    self.puzzle_move_response()
+            if piece is not None and piece.color == self._board.turn: 
+                if ss is None:
+                    return
+                else:
+                    self.make_move(Move(ss, square))     #type:  ignore
+
+    def make_move(self, move:Move):
+        if move in self._board.legal_moves:
+            self._board.push(move)
+                  
+        # else:
+        #     if square in self._legal_squares:
+        #         self._board.push(chess.Move(self._selected_square, square))                
+        #         self._selected_square = None
+        #         self._previous_square = None
+        #         self._target_square = None
+        #         self._legal_squares.clear()
+
+        #         if self._manager_state == ManagerState.GAME_STARTED:
+        #             self.game_move_response()
+        #         elif self._manager_state == ManagerState.PUZZLE_STARTED:
+        #             self.puzzle_move_response()
 
     def new_game(self):
-        self._board = Board()
-        self._display_board.update_board_display(ChessBoardInfo(piece_location=self.get_piece_location()))
+        self._display_board.reset()
 
     

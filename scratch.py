@@ -10,7 +10,7 @@ from GameManager import IMAGE_MAP, ChessGameManager
 import chess
 import chess.pgn
 from chess import Board
-from Display import ChessBoard, ChessBoardInfo
+from Display import SmartChessBoard
 from Input import EventHandler, Event
 
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     root.title("Chess")    
     canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
     canvas.pack(fill="both", expand=True)
-    cb:ChessBoard = ChessBoard(canvas, IMAGE_MAP, show_algebraic=True)
+    cb:SmartChessBoard = SmartChessBoard(canvas, IMAGE_MAP, show_algebraic=True)
     cgm:ChessGameManager = ChessGameManager(cb) 
     cgm.new_game()   
     root.update() 

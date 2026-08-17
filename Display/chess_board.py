@@ -29,22 +29,18 @@ DARK_SQUARE_COLOR = f"#{DARK_SQUARE[0]:x}{DARK_SQUARE[1]:x}{DARK_SQUARE[2]:x}"
 SELECTED_SQUARE_COLOR:str ="#FFFF00"
 MOVE_COLOR:str = "#64B7DA"
 CIRCLE_COLOR:str = "#083808"
+LEGAL:str = "#785DB7"
+
+LEGAL_TAG:str = "legal_tag"
 
 @dataclass
 class SquareData:
     background_id:int = -1
     piece_id:int = -1
     label_id:int = -1
-    bbox:list[float] = field(default_factory=list)    
+    bbox:list[float] = field(default_factory=list)
 
-@dataclass
-class ChessBoardInfo:
-    selected_square:Square|None = None
-    from_square:Square|None = None
-    to_square:Square|None = None
-
-
-class SmartChessBoard(Board, EventDispatcher):
+class SmartChessBoard(Board):
     """Tkinter display for chess game that extends chess.board """
 
     TKINTER_LEFT_CLICK:str = "<Button-1>"
@@ -56,8 +52,9 @@ class SmartChessBoard(Board, EventDispatcher):
                  show_algebraic:bool=False,
                  show_legal_move:bool = True,
                  show_to_from:bool = True) -> None:
+        
+        
         super().__init__(fen, chess960=chess960)
-
         self._canvas = canvas
         self._canvas.bind(self.TKINTER_LEFT_CLICK, self._left_mouse_click)
         self._square_size:int = int(canvas.cget("width")) // 8
@@ -69,22 +66,10 @@ class SmartChessBoard(Board, EventDispatcher):
         
         self._show_algebraic:bool = show_algebraic
         self._show_pieces: bool = show_pieces
-        self._show_legal_move = show_legal_move
-        self._show_to_from = show_to_from
+        
         self._initialize()
 
-    @property
-    def board_info(self)->ChessBoardInfo:
-        """
-        gets display state of a square
-
-        Returns:
-            ChessBoardInfo: Display State
-        """
-        return ChessBoardInfo(selected_square=self.selected_square,
-                                from_square=self._from_square,
-                                to_square=self._to_square)
-        
+           
     @property
     def show_algebraic(self)->bool:
         """
@@ -126,7 +111,7 @@ class SmartChessBoard(Board, EventDispatcher):
             Returns:
                 None
         """
-        self.selected_square = None
+        self.set_selected_square(None)
         self.set_moves_squares(None)
 
         if clear_pieces:
@@ -141,7 +126,7 @@ class SmartChessBoard(Board, EventDispatcher):
             """
             return self._selected_square
 
-    def selected_square(self, sq:Square|None, set_legal:bool):
+    def set_selected_square(self, sq:Square|None, set_legal:bool=True):
         if self._selected_square is not None:
             self._canvas.itemconfig(self._get_square_id(self._selected_square),
                                     outline="black")
@@ -151,7 +136,11 @@ class SmartChessBoard(Board, EventDispatcher):
             self._selected_square = sq
             
         if set_legal:
-            
+            self._clear_legal_squares()
+            self._set_legal_square(self.get_legal_squares(sq))            
+
+    def get_legal_squares(self, sq:Square)->list[Square]:
+        return [m.to_square for m in self.legal_moves if m.from_square == sq]
 
     @override
     def set_piece_at(self, square:Square, piece:Piece|None, promoted:bool=False)->None:
@@ -169,6 +158,16 @@ class SmartChessBoard(Board, EventDispatcher):
     def reset(self):
         self._remove_all_pieces_display()
         super().reset()
+        self._set_all_pieces_display()
+
+    def _clear_legal_squares(self):
+        self._canvas.delete(LEGAL_TAG)
+
+    def _set_legal_square(self, squares:list[Square]):
+        for square in squares:
+            bb:list[float] = self._get_square_bbox(square)
+            self._canvas.create_oval(bb[0] + 4, bb[1] + 4, bb[2] -4, bb[3] - 4,
+                                    width=0.0, fill=LEGAL, tags=LEGAL_TAG)
 
     def _left_mouse_click(self, event:tk.Event):
         """

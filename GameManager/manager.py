@@ -13,7 +13,7 @@ from chess import (engine,
 import chess
 
 from Input import EventHandler, Event, TkButtonInputHandler
-from Display import BoardDisplay, DisplayInfo, SaveResult, ChessBoard
+from Display import BoardDisplay, DisplayInfo, SaveResult, SmartChessBoard
 from .puzzler import PuzzleEngine
 from .game_data import ActivityPersisterDF, SaveOption
 from .utilites import ActivityInfo
@@ -24,7 +24,7 @@ SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 600
 
 class ActivityManager(ABC):
-    def __init__(self, display_board:ChessBoard):
+    def __init__(self, display_board:SmartChessBoard):
         self._display_board = display_board
 
     @abstractmethod

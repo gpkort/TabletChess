@@ -24,9 +24,17 @@ class EventHandler:
 
 class EventDispatcher():
     def __init__(self):
+        # self.initialize_dispatch()
+
         self._event_handlers: dict[int, EventHandler] = {}
         self._lock = threading.Lock()
         self._all_listeners:dict[int, list[int]] = {}
+        
+    # def initialize_dispatch(self):
+    #     self._event_handlers: dict[int, EventHandler] = {}
+    #     self._lock = threading.Lock()
+    #     self._all_listeners:dict[int, list[int]] = {}
+        
         
     def register_handler(self, event_handler: EventHandler) -> int:
         handler_id:int = hash(event_handler)
