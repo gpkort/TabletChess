@@ -4,6 +4,7 @@ import numpy as np
 
 from chess import Piece
 
+PIECE_LETTERS:list[str] = ["r", "n", "b", "q", "k", "p", "P", "R", "N", "B", "Q", "K"]
 
 def create_transparent_image(size:int, color:Tuple[float,...] = (0, 255, 0, 64)) -> ImageTk.PhotoImage:
     img = Image.new("RGBA", (size, size), color)
@@ -26,7 +27,7 @@ def load_pieces(pieces_map:dict[str, str], size:int,) -> dict[str, ImageTk.Photo
 
         if image.mode != "RGBA":
             image = image.convert("RGBA")
-        image = image.resize((size - 4, size - 4))
+        image = image.resize((size - 6, size - 6))
 
         pixs = np.array(image)            
         r, g, b, a = pixs[:,:,0], pixs[:,:,1], pixs[:,:,2], pixs[:,:,3]

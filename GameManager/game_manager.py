@@ -19,7 +19,7 @@ class ChessGameManager(ActivityManager):
     def on_square_click(self, event:Event, data:dict[str, Any]):
         square:Square = data["square"]
         selected:bool = data["selected"]
-
+        
         if selected:
             self._display_board.clear_board_display(clear_pieces=False)
             return        
@@ -27,15 +27,16 @@ class ChessGameManager(ActivityManager):
             ss:Square | None = self._board.get_selected_square()
             piece:Piece | None = self._board.piece_at(square) 
 
-            if piece is not None and piece.color == self._board.turn: 
-                if ss is None:
-                    return
-                else:
-                    self.make_move(Move(ss, square))     #type:  ignore
+            if piece is not None and piece.color == self._board.turn:                 
+                if ss is not None:
+                    self._board.set_selected_square(None)
+                self._board.set_selected_square(square)
+            else:
+                self.make_move(Move(ss, square))     #type:  ignore
 
-    def make_move(self, move:Move):
-        if move in self._board.legal_moves:
-            self._board.push(move)
+    def make_move(self, move:Move):        
+        if self._board.process_move(move) is not None:
+            # TODO: Process result
                   
         # else:
         #     if square in self._legal_squares:

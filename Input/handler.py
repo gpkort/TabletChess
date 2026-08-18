@@ -14,6 +14,9 @@ class Event(Enum):
     PUZZLE_SELECT = 6
     LOAD_GAME = 7
     LOAD_PUZZLE = 8
+    MOVE_RESULT = 9
+    
+    
     UNKNOWN = 99
 
 @dataclass(frozen=True)

@@ -3,11 +3,12 @@
 from dataclasses import dataclass, field
 from typing import Tuple, Any, Optional, override
 import math
+from enum import Enum
 
 import tkinter as tk
 from PIL import ImageTk
 
-from chess import (STARTING_FEN, Square,
+from chess import (STARTING_FEN, Square, SquareSet,
                    square,
                    SQUARES,
                    square_rank,
@@ -15,10 +16,10 @@ from chess import (STARTING_FEN, Square,
                    square_name,
                    Piece,
                    Board,
-                   Move)
+                   Move, Outcome)
 
 from Input import EventDispatcher, Event
-from . import load_pieces_to_map
+from . import load_pieces_to_map, PIECE_LETTERS
 
 LIGHT_SQUARE:Tuple[int, int, int] = (238, 238, 210)
 DARK_SQUARE:Tuple[int, int, int] = (118, 150, 86)
@@ -33,14 +34,26 @@ LEGAL:str = "#785DB7"
 
 LEGAL_TAG:str = "legal_tag"
 
-@dataclass
-class SquareData:
-    background_id:int = -1
-    piece_id:int = -1
-    label_id:int = -1
-    bbox:list[float] = field(default_factory=list)
+class MOVE_ID(Enum):
+    CAPTURE = 1
+    ATTACKING = 2
+    ATTACKED = 3
 
-class SmartChessBoard(Board):
+@dataclass
+class MoveResult:
+    move:Move
+    piece_id:Piece
+    attacking:list[dict[Square, Optional[Piece]]] = field(default_factory=list)
+    attacked_by:list[dict[Square, Optional[Piece]]] = field(default_factory=list)
+    captured_piece:Optional[Piece] = None
+    gives_check:bool = False
+    is_kingside_castling:bool = False
+    is_queenside_castling:bool = False
+    is_game_over:bool = False
+    outcome:Optional[Outcome] = None
+
+
+class SmartChessBoard(Board, EventDispatcher):
     """Tkinter display for chess game that extends chess.board """
 
     TKINTER_LEFT_CLICK:str = "<Button-1>"
@@ -51,10 +64,9 @@ class SmartChessBoard(Board):
                  chess960: bool = False,
                  show_algebraic:bool=False,
                  show_legal_move:bool = True,
-                 show_to_from:bool = True) -> None:
+                 show_to_from:bool = True) -> None:        
         
-        
-        super().__init__(fen, chess960=chess960)
+        EventDispatcher.__init__(self)
         self._canvas = canvas
         self._canvas.bind(self.TKINTER_LEFT_CLICK, self._left_mouse_click)
         self._square_size:int = int(canvas.cget("width")) // 8
@@ -62,12 +74,15 @@ class SmartChessBoard(Board):
         self._image_map:dict[Piece, ImageTk.PhotoImage] = load_pieces_to_map(pieces_map,
                                                                              self._square_size)
 
-        self._selected_square:Optional[Square]|None = None
-        
+        self._selected_square:Optional[Square]|None = None        
         self._show_algebraic:bool = show_algebraic
         self._show_pieces: bool = show_pieces
         
         self._initialize()
+        super().__init__(None, chess960=chess960)
+        if fen is not None:
+            self.set_fen(fen)
+            self._set_all_pieces_display()
 
            
     @property
@@ -131,16 +146,49 @@ class SmartChessBoard(Board):
             self._canvas.itemconfig(self._get_square_id(self._selected_square),
                                     outline="black")
             self._selected_square = None
+
+            if set_legal:
+                self._clear_legal_squares()
         if sq is not None:
             self._canvas.itemconfig(self._get_square_id(sq), outline=SELECTED_SQUARE_COLOR)
             self._selected_square = sq
-            
-        if set_legal:
-            self._clear_legal_squares()
-            self._set_legal_square(self.get_legal_squares(sq))            
+
+            if set_legal:       
+                self._set_legal_square(self.get_legal_squares(sq)) 
+
+            # TODO:Add attacker and attacked
 
     def get_legal_squares(self, sq:Square)->list[Square]:
         return [m.to_square for m in self.legal_moves if m.from_square == sq]
+
+    def process_move(self, move:Move, update_board:bool=True)->MoveResult | None:
+        p:Piece | None = self.piece_at(move.from_square)
+        game_over:bool = self.is_game_over()
+        if self.is_legal(move) or p is None:
+            return None
+        mr:MoveResult = MoveResult(move=move, piece_id=p)
+        mr.is_game_over = game_over
+
+        if not game_over:
+            mr.is_kingside_castling = self.is_kingside_castling(move)
+            mr.is_queenside_castling = self.is_queenside_castling(move)
+            mr.gives_check = self.gives_check(move)
+
+            if self.is_capture(move):
+                mr.captured_piece = self.piece_at(move.to_square)  
+            
+            atsq:list[int] = [i for i, b in enumerate(self.attacks(move.to_square).tolist()) if b]
+            mr.attacking = [{i:self.piece_at(i)} for i in atsq]
+
+            atksq:list[int] = [i for i, b in enumerate(self.attackers(p.color, move.to_square).tolist()) if b]
+            mr.attacked_by = [{i:self.piece_at(i)} for i in atksq]
+        else:
+            mr.outcome = self.outcome()
+
+        if update_board:
+            self.push(move)
+
+        return mr
 
     @override
     def set_piece_at(self, square:Square, piece:Piece|None, promoted:bool=False)->None:
@@ -158,6 +206,12 @@ class SmartChessBoard(Board):
     def reset(self):
         self._remove_all_pieces_display()
         super().reset()
+        self._set_all_pieces_display()
+
+    @override
+    def push(self, move: Move) -> None:
+        self.clear_board_display()
+        super().push(move)
         self._set_all_pieces_display()
 
     def _clear_legal_squares(self):
@@ -179,8 +233,7 @@ class SmartChessBoard(Board):
         file:int = math.floor(event.x / self._square_size)
         rank:int = 7 - math.floor(event.y / self._square_size)
         sq:Square = square(file, rank)
-        data:dict[str, Any] = {"data":{"square":sq,
-                                       "selected":sq == self._selected_square}}
+        data:dict[str, Any] = {"square":sq, "selected":sq == self._selected_square}
         self._dispatch(Event.SQUARE_CLICK, data)
 
     def _reset_all_backgrounds(self)->None:
@@ -197,11 +250,13 @@ class SmartChessBoard(Board):
             Returns:
                 None
         """
-        self._canvas.itemconfig(self._get_square_id(sq), fill="black")
+        self._canvas.itemconfig(self._get_square_id(sq), fill=self._get_square_color(sq), outline='black')
 
     def _remove_all_pieces_display(self):
-        for k in self.piece_map():
-            self._remove_piece_display(k)
+        # for k in self.piece_map():
+        #     self._remove_piece_display(k)
+        for l in PIECE_LETTERS:
+            self._canvas.delete(l)
 
     def _set_all_pieces_display(self):
         for k, v in self.piece_map().items():
@@ -215,7 +270,6 @@ class SmartChessBoard(Board):
                 self._canvas.delete(ids[0])
 
     def _set_piece_display(self, square:Square, piece:Piece|None)->None:
-        self._remove_piece_display(square)
         if piece is not None:
             coords:list[float] = self._get_square_bbox(square)
             self._canvas.create_image(coords[0] + 2, coords[1] + 2, tags=Piece.symbol(piece),
