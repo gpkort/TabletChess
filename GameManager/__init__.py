@@ -19,4 +19,4 @@ from .constants import (STARTING_FEN,
 from .manager import ChessManager, ActivityManager
 
 from .openings import OpeningLibrary, OpeningLibraryDF
-from .game_manager import ChessGameManager
+from .game_manager import ChessGameManager, GameConfiguration

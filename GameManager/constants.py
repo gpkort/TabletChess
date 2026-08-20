@@ -17,6 +17,32 @@ IMAGE_MAP:dict[str, str] = {
         "Q": r"assets\imgs\w_queen.png",
         "K": r"assets\imgs\w_king.png",
         "P": r"assets\imgs\w_pawn.png",
+
+        "ar": r"assets\imgs\ab_rook.png",
+        "an": r"assets\imgs\ab_knight.png",
+        "ab": r"assets\imgs\ab_bishop.png",
+        "aq": r"assets\imgs\ab_queen.png",
+        "ak": r"assets\imgs\ab_king.png",
+        "ap": r"assets\imgs\ab_pawn.png",
+        "aR": r"assets\imgs\aw_rook.png",
+        "aN": r"assets\imgs\aw_knight.png",
+        "aB": r"assets\imgs\aw_bishop.png",
+        "aQ": r"assets\imgs\aw_queen.png",
+        "aK": r"assets\imgs\aw_king.png",
+        "aP": r"assets\imgs\aw_pawn.png",
+
+        "vr": r"assets\imgs\vb_rook.png",
+        "vn": r"assets\imgs\vb_knight.png",
+        "vb": r"assets\imgs\vb_bishop.png",
+        "vq": r"assets\imgs\vb_queen.png",
+        "vk": r"assets\imgs\vb_king.png",
+        "vp": r"assets\imgs\vb_pawn.png",
+        "vR": r"assets\imgs\vw_rook.png",
+        "vN": r"assets\imgs\vw_knight.png",
+        "vB": r"assets\imgs\vw_bishop.png",
+        "vQ": r"assets\imgs\vw_queen.png",
+        "vK": r"assets\imgs\vw_king.png",
+        "vP": r"assets\imgs\vw_pawn.png",
     }
 
 class Theme(Enum):

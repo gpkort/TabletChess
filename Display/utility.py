@@ -1,10 +1,25 @@
 from typing import Tuple
+from os import path, walk
+
 from PIL import Image, ImageTk
 import numpy as np
-
 from chess import Piece
 
 PIECE_LETTERS:list[str] = ["r", "n", "b", "q", "k", "p", "P", "R", "N", "B", "Q", "K"]
+NAME_TO_PIECE_MAP:dict[str, str] = {
+"b_rook" : "r",
+"b_knight" : "n",
+"b_bishop" : "b",
+"b_queen" : "q",
+"b_king" : "k",
+"b_pawn" : "p",
+"w_rook" : "r",
+"w_knight" : "N",
+"w_bishop" : "B",
+"w_queen" : "Q",
+"w_king" : "K",
+"w_pawn" : "P",
+    }
 
 def create_transparent_image(size:int, color:Tuple[float,...] = (0, 255, 0, 64)) -> ImageTk.PhotoImage:
     img = Image.new("RGBA", (size, size), color)
@@ -45,3 +60,12 @@ def load_pieces_to_map(pieces_map:dict[str, str], size:int,) -> dict[Piece, Imag
         ret[Piece.from_symbol(k)] = v
     return ret
 
+
+def create_image_map(dir:str)->dict[str, str]:
+    im:dict[str, str] = {}
+    for root, _, files in walk(dir):
+        for f in files:
+            if f[:-4] in NAME_TO_PIECE_MAP.keys():
+                im[f[:-4]] = str(path.join(root,f))
+
+    return im
