@@ -15,7 +15,7 @@ class Event(Enum):
     LOAD_GAME = 7
     LOAD_PUZZLE = 8
     MOVE_RESULT = 9
-    
+    DOUBLE_CLICK = 10    
     
     UNKNOWN = 99
 

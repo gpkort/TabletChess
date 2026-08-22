@@ -56,7 +56,9 @@ class MoveResult:
 class SmartChessBoard(Board, EventDispatcher):
     """Tkinter display for chess game that extends chess.board """
 
-    TKINTER_LEFT_CLICK:str = "<Button-1>"
+    TK_LEFT_CLICK:str = "<Button-1>"
+    TK_DOUBLE_CLICK:str = "<Double-Button-1>"
+
     def __init__(self, canvas:tk.Canvas, 
                  pieces_map:dict[str, str], 
                  fen: str | None = STARTING_FEN, *,
@@ -68,7 +70,8 @@ class SmartChessBoard(Board, EventDispatcher):
         
         EventDispatcher.__init__(self)
         self._canvas = canvas
-        self._canvas.bind(self.TKINTER_LEFT_CLICK, self._left_mouse_click)
+        self._canvas.bind(self.TK_LEFT_CLICK, self._left_mouse_click)
+        self._canvas.bind(self.TK_DOUBLE_CLICK, self._double_click)
         self._square_size:int = int(canvas.cget("width")) // 8
 
         self._image_map:dict[str, ImageTk.PhotoImage] = load_pieces(pieces_map,
@@ -175,8 +178,8 @@ class SmartChessBoard(Board, EventDispatcher):
         mr.is_game_over = game_over
         if game_over:
             mr.outcome = self.outcome()
-        
-        self._clear_display_cues()
+
+        self.clear_display_cues()
         self.push(move)
 
         if not game_over:
@@ -196,6 +199,10 @@ class SmartChessBoard(Board, EventDispatcher):
             mr.outcome = self.outcome()
 
         return mr
+
+    def clear_display_cues(self):
+        self._clear_legal_squares()
+        self.set_selected_square(None)
 
     @override
     def set_piece_at(self, square:Square, piece:Piece|None, promoted:bool=False)->None:
@@ -256,23 +263,26 @@ class SmartChessBoard(Board, EventDispatcher):
                 sym:str = "a" + Piece.symbol(p)
                 self._remove_piece_at(square)
                 self._set_piece_image(sq, sym)
-                
-    def _clear_display_cues(self):
-        self._clear_legal_squares()
-        self.set_selected_square(None)
-
-    def _left_mouse_click(self, event:tk.Event):
+    
+    def _left_mouse_click(self, event:tk.Event)->None:
         """
         user makes left click
 
         Args:
             event (tk.Event): event containing x, y coordinates
         """
-        file:int = math.floor(event.x / self._square_size)
-        rank:int = 7 - math.floor(event.y / self._square_size)
-        sq:Square = square(file, rank)
-        data:dict[str, Any] = {"square":sq, "selected":sq == self._selected_square}
+        sq = self._get_square_click(event.x, event.y)
+        data:dict[str, Any] = {"square":sq, "selected_square":self._selected_square}
         self._dispatch(Event.SQUARE_CLICK, data)
+
+    def _double_click(self, event:tk.Event)->None:
+        """
+        user makes double click
+
+        Args:
+            event (tk.Event): event containing x, y coordinates
+        """
+        self._dispatch(Event.DOUBLE_CLICK, {"square":self._get_square_click(event.x, event.y)})     
 
     def _reset_all_backgrounds(self)->None:
         for s in SQUARES:
@@ -346,6 +356,7 @@ class SmartChessBoard(Board, EventDispatcher):
                                     fill="red", font=("Arial", 8, "bold"),
                                     state=('normal' if self._show_algebraic else 'hidden'))
             self._square_to_piece_map[sq] = None
+
     def _get_square_id(self, sq:Square)->int:
         """
             helper to square canvas id
@@ -363,3 +374,8 @@ class SmartChessBoard(Board, EventDispatcher):
         handy util to get background color
         """
         return LIGHT_SQUARE_COLOR if (square_rank(sq) + square_file(sq)) % 2 == 0 else DARK_SQUARE_COLOR
+
+    def _get_square_click(self, x:int, y:int)->Square:
+        file:int = math.floor(x / self._square_size)
+        rank:int = 7 - math.floor(y / self._square_size)
+        return square(file, rank)

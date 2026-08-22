@@ -11,7 +11,8 @@ from chess import (Piece,
                    Color,
                    WHITE,
                    BLACK,
-                   STARTING_FEN,)
+                   STARTING_FEN,
+                   square_name,)
 
 
 from Display import SmartChessBoard, MoveResult
@@ -82,28 +83,33 @@ class ChessGameManager(ActivityManager):
         super().__init__(chess_board)
         self._board:SmartChessBoard = chess_board
         self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self.on_square_click))
+        self._board.register_handler(EventHandler(Event.DOUBLE_CLICK, self.on_square_double_click))
 
         self._engine:engine.SimpleEngine = chess_engine
         self.game_config:GameConfiguration | None = None
 
-    def on_square_click(self, event:Event, data:dict[str, Any]):
-        print(data)
+    def on_square_click(self, event:Event, data:dict[str, Any])->None:
         square:Square = data["square"]
-        selected:bool = data["selected"]
+        selected_sq:Square | None = data["selected_square"]
         
-        if selected:
-            self._display_board.clear_board_display(clear_pieces=False)
+        if selected_sq == square:
+            self._display_board.clear_display_cues()
             return        
         else:
-            ss:Square | None = self._board.get_selected_square()
             piece:Piece | None = self._board.piece_at(square) 
 
-            if piece is not None and piece.color == self._board.turn:                 
-                if ss is not None:
-                    self._board.set_selected_square(None)
+            if piece is not None and piece.color != self._board.turn:
+                return
+
+            if piece is not None and piece.color == self._board.turn:
+                if selected_sq is not None:
+                    self._display_board.clear_display_cues()
                 self._board.set_selected_square(square)
             else:
-                self.make_move(Move(ss, square))     #type:  ignore
+                self.make_move(Move(selected_sq, square))     #type:  ignore
+
+    def on_square_double_click(self, event:Event, data:dict[str, Any])->None:
+        print(f"Square: {square_name(data["square"])}")
 
     def make_move(self, move:Move):   
         mr:MoveResult|None = self._board.process_move(move)
