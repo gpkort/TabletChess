@@ -15,7 +15,7 @@ from chess import (Piece,
                    square_name,)
 
 
-from Display import SmartChessBoard, MoveResult
+from Display import SmartChessBoard
 from GameManager import ActivityManager
 from Input import Event, EventHandler
 
@@ -112,18 +112,10 @@ class ChessGameManager(ActivityManager):
         print(f"Square: {square_name(data["square"])}")
 
     def make_move(self, move:Move):   
-        mr:MoveResult|None = self._board.process_move(move)
-        if mr is not None:
-            # TODO: Process result
-            print(mr)
-            # pr:engine.PlayResult = self._engine.play(self._board, self._limit)
-            #         # print(f"Play Result = {pr}")
-            #         # sleep(2)
-            # if pr.move is not None:
-            #     self.move_opponent(pr.move)
-            
-                  
-       
+        if self._board.process_move(move):
+            print(str(self._board.get_board_status()))
+        else:
+            print("Illegal")
 
     def load_game(self, config:GameConfiguration):
         self.game_config = config

@@ -1,21 +1,21 @@
 # pylint: disable=redefined-outer-name
 
 from dataclasses import dataclass, field
-from typing import Tuple, Any, Optional, override
+from typing import Tuple, Any, Optional, override, Literal
 import math
 from enum import Enum
 
 import tkinter as tk
 from PIL import ImageTk
 
-from chess import (STARTING_FEN, Square, SquareSet,
+from chess import (STARTING_FEN, Square, 
                    square,
                    SQUARES,
                    square_rank,
-                   square_file,
-                   square_name,
-                   Piece,
-                   Board, PieceType,
+                   square_file, KING,
+                   square_name, BLACK,
+                   Piece, WHITE,
+                   Board, Color,
                    Move, Outcome)
 
 from Input import EventDispatcher, Event
@@ -40,20 +40,38 @@ class MOVE_ID(Enum):
     ATTACKED = 3
 
 @dataclass
-class MoveResult:
-    move:Move
-    piece_id:Piece
-    attacking:list[dict[Square, Optional[Piece]]] = field(default_factory=list)
-    attacked_by:list[dict[Square, Optional[Piece]]] = field(default_factory=list)
+class Attack:
+    from_sq:Square
+    to_sq:Square
+    from_piece:Piece
+    to_piece:Piece
+
+    def __str__(self) -> str:
+        return f"from: {square_name(self.from_sq)} : {self.from_piece.symbol()}, to: {square_name(self.to_sq)} : {self.to_piece.symbol()}, "
+
+@dataclass
+class BoardStatus:
+    last_move:Move
+    turn:Color
+    last_piece:Optional[Piece] = None    
     captured_piece:Optional[Piece] = None
-    gives_check:bool = False
-    is_kingside_castling:bool = False
-    is_queenside_castling:bool = False
+    selected_square:Square|None = None
     is_game_over:bool = False
     outcome:Optional[Outcome] = None
+    checkers:list[Attack] = field(default_factory=list)
+    attacked_by_black:list[Attack] = field(default_factory=list)
+    attacked_by_white:list[Attack] = field(default_factory=list)
 
+    def __str__(self) -> str:
+        ret:str = f"last_move: {self.last_move.uci()}, turn: {"WHITE" if self.turn else "BLACK"} "
+        ret += f" last_Piece: {self.last_piece.symbol() if self.last_piece else ""}, "
+        ret += f" captured_piece: {self.captured_piece.symbol() if self.captured_piece else ""}, "
+        ret += f"checkers: [{",".join([str(c) for c in self.checkers])}] "
+        ret += f"attacked_by_black: [{",".join([str(c) for c in self.attacked_by_black])}] "
+        ret += f"attacked_by_white: [{",".join([str(c) for c in self.attacked_by_white])}] "
+        return ret
 
-class SmartChessBoard(Board, EventDispatcher):
+class SmartChessBoard(EventDispatcher):
     """Tkinter display for chess game that extends chess.board """
 
     TK_LEFT_CLICK:str = "<Button-1>"
@@ -63,10 +81,7 @@ class SmartChessBoard(Board, EventDispatcher):
                  pieces_map:dict[str, str], 
                  fen: str | None = STARTING_FEN, *,
                  show_pieces:bool = True,
-                 chess960: bool = False,
-                 show_algebraic:bool=False,
-                 show_legal_move:bool = True,
-                 show_to_from:bool = True) -> None:        
+                 show_algebraic:bool=False,) -> None:        
         
         EventDispatcher.__init__(self)
         self._canvas = canvas
@@ -81,16 +96,12 @@ class SmartChessBoard(Board, EventDispatcher):
         self._show_algebraic:bool = show_algebraic
         self._show_pieces: bool = show_pieces
 
-        self._square_to_piece_map:dict[Square, Optional[int]] = {}
+        self._board:Board = Board(fen)
+        self._square_to_piece_map:dict[Square, Optional[int]] = {}        
         for s in SQUARES:
             self._square_to_piece_map[s] = None
         
         self._initialize()
-        super().__init__(None, chess960=chess960)
-        if fen is not None:
-            self.set_fen(fen)
-            self._set_all_pieces_display()
-
              
     @property
     def show_algebraic(self)->bool:
@@ -104,6 +115,8 @@ class SmartChessBoard(Board, EventDispatcher):
             sid:int = self._canvas.find_withtag(square_name(s))[0]
             self._canvas.itemconfigure(sid, state=('normal' if show else 'hidden'))
         self._show_algebraic = show
+
+    # region public methods
     
     def set_moves_squares(self, move:Move|None)->None:
         """
@@ -168,72 +181,91 @@ class SmartChessBoard(Board, EventDispatcher):
     def get_legal_squares(self, sq:Square)->list[Square]:
         return [m.to_square for m in self.legal_moves if m.from_square == sq]
 
-    def process_move(self, move:Move)->MoveResult | None:
+    def process_move(self, move:Move)->bool:
         print(f"Move: {move.uci()}")
-        p:Piece | None = self.piece_at(move.from_square)
-        game_over:bool = self.is_game_over()
-        if not self.is_legal(move) or p is None:
-            return None
-        mr:MoveResult = MoveResult(move=move, piece_id=p)
-        mr.is_game_over = game_over
-        if game_over:
-            mr.outcome = self.outcome()
-            return
-        mr.gives_check = self.gives_check(move)
-
+        p:Piece | None = self._board.piece_at(move.from_square)
+        
+        if not self._board.is_legal(move) or p is None:
+            return False
+        
         self.clear_display_cues()
         self.push(move)
+        print(self._board.fen())
 
-        if not game_over:
-            mr.is_kingside_castling = self.is_kingside_castling(move)
-            mr.is_queenside_castling = self.is_queenside_castling(move)
-            
-
-            if self.is_capture(move):
-                mr.captured_piece = self.piece_at(move.to_square)  
-            
-            atsq:list[int] = [i for i, b in enumerate(self.attacks(move.to_square).tolist()) if b]
-            mr.attacking = [{i:self.piece_at(i)} for i in atsq]
-
-            atksq:list[int] = [i for i, b in enumerate(self.attackers(p.color, move.to_square).tolist()) if b]
-            mr.attacked_by = [{i:self.piece_at(i)} for i in atksq]
-        else:
-            mr.outcome = self.outcome()
-
-        return mr
+        return True
 
     def clear_display_cues(self):
         self._clear_legal_squares()
         self.set_selected_square(None)
 
-    @override
+    def get_squares_by_color(self, color:Color)->dict[Square, Piece]:
+        squares:dict[Square, Piece] = {}
+        for sq in SQUARES:
+            p:Piece|None = self._board.piece_at(sq)
+
+            if p is not None:
+                if p.color == color:
+                    squares[sq] = p
+
+        return squares
+
+    def get_board_status(self)->BoardStatus:
+        last:Move = self._board.pop()
+        b_stat:BoardStatus = BoardStatus(last_move=last, turn=self._board.turn) 
+
+        b_stat.last_piece = self._board.piece_at(last.from_square)     
+        b_stat.captured_piece = self._board.piece_at(last.to_square)
+        b_stat.selected_square = self._selected_square
+        self._board.push(last)
+
+        b_stat.is_game_over = self._board.is_game_over()
+
+        if not b_stat.is_game_over:
+            for c in [WHITE,BLACK]:
+                for k,v in self.get_squares_by_color(c).items():
+                    for asq in list(self._board.attackers(BLACK if c == WHITE else BLACK, k)):
+                        att_p:Piece|None = self._board.piece_at(asq)
+                        if att_p is not None:
+                            if c == WHITE:
+                                b_stat.attacked_by_black.append(Attack(asq, k, att_p, v))
+                            else:
+                                b_stat.attacked_by_white.append(Attack(asq, k, att_p, v))
+
+            for ck in list(self._board.checkers()):
+                k:Square|None = self._board.king(self._board.turn)
+                att_p:Piece|None = self._board.piece_at(ck)
+                if k is not None and att_p is not None:
+                    b_stat.checkers.append(Attack(ck, k, att_p, Piece(KING, self._board.turn)))
+                
+        return b_stat
+
+    # region endregion
+
+    # region Wrapped chess.board methods
+
     def set_piece_at(self, square:Square, piece:Piece|None, promoted:bool=False)->None:
         self._remove_piece_display(square)
         self._set_piece_display(square, piece)
 
-        super().set_piece_at(square, piece, promoted)
-
-    @override
+        self._board.set_piece_at(square, piece, promoted)
+   
     def remove_piece_at(self, square:Square)->Piece|None:
         self._remove_piece_display(square)
-        return super().remove_piece_at(square)
+        return self._board.remove_piece_at(square)
 
-    @override
     def reset(self):
         self._remove_all_pieces_display()
-        super().reset()
+        self._board.reset()
         self._set_all_pieces_display()
 
-    @override
     def push(self, move: Move) -> None:
         self._remove_piece_display(move.from_square)
-        self._set_piece_display(move.to_square, self.piece_at(move.from_square))
-        super().push(move)
+        self._set_piece_display(move.to_square, self._board.piece_at(move.from_square))
+        self._board.push(move)
 
-    @override
     def pop(self)->Move: 
-        piece:Optional[Piece] = self.piece_at(self.peek().to_square)
-        mv:Move = super().pop()
+        piece:Optional[Piece] = self._board.piece_at(self._board.peek().to_square)
+        mv:Move = self._board.pop()
 
         self._remove_piece_display(mv.to_square)
         if piece is not None:
@@ -241,29 +273,40 @@ class SmartChessBoard(Board, EventDispatcher):
 
         return mv
 
-    @override
+    def fen(self, *, shredder: bool = False, en_passant: Literal['legal'] | Literal['fen'] | Literal['xfen'] = "legal", promoted: bool | None = None) -> str:
+        return self._board.fen(shredder=shredder, en_passant=en_passant, promoted=promoted)
+
     def set_fen(self, fen: str) -> None:
         self.clear_board_display()
-        super().set_fen(fen)
+        self._board.set_fen(fen)
         self._set_all_pieces_display()
+
+    def piece_at(self, square:Square)->Piece|None:
+        return self._board.piece_at(square)
+
+    @property
+    def turn(self):
+        return self._board.turn
+
+    #endregion
+
+    # region private methods
 
     def _clear_legal_squares(self):
         self._canvas.delete(LEGAL_TAG)
 
     def _set_legal_square(self, sq:Square):
-        # self._canvas.find_overlapping(x, y, x, y)
-        #         canvas.find_closest(x, y)
         ls:list[str] = [square_name(sn) for sn in self.get_legal_squares(sq)]
-        print(f"Squares:{sq} = {ls}")
+       
         for square in self.get_legal_squares(sq):
-            p:Optional[Piece] = self.piece_at(square)
+            p:Optional[Piece] = self._board.piece_at(square)
             if p is None:
                 bb:list[float] = self._get_square_bbox(square)
                 self._canvas.create_oval(bb[0] + 4, bb[1] + 4, bb[2] -4, bb[3] - 4,
                                     width=0.0, fill=LEGAL, tags=LEGAL_TAG)
             else:
                 sym:str = "a" + Piece.symbol(p)
-                self._remove_piece_at(square)
+                self._board._remove_piece_at(square)
                 self._set_piece_image(sq, sym)
     
     def _left_mouse_click(self, event:tk.Event)->None:
@@ -309,7 +352,7 @@ class SmartChessBoard(Board, EventDispatcher):
             self._canvas.delete(l)
 
     def _set_all_pieces_display(self):
-        for k, v in self.piece_map().items():
+        for k, v in self._board.piece_map().items():
             self._set_piece_display(k, v)
 
     def _remove_piece_display(self, square:Square):
@@ -381,3 +424,5 @@ class SmartChessBoard(Board, EventDispatcher):
         file:int = math.floor(x / self._square_size)
         rank:int = 7 - math.floor(y / self._square_size)
         return square(file, rank)
+
+#endregion
