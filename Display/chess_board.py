@@ -178,6 +178,8 @@ class SmartChessBoard(Board, EventDispatcher):
         mr.is_game_over = game_over
         if game_over:
             mr.outcome = self.outcome()
+            return
+        mr.gives_check = self.gives_check(move)
 
         self.clear_display_cues()
         self.push(move)
@@ -185,7 +187,7 @@ class SmartChessBoard(Board, EventDispatcher):
         if not game_over:
             mr.is_kingside_castling = self.is_kingside_castling(move)
             mr.is_queenside_castling = self.is_queenside_castling(move)
-            mr.gives_check = self.gives_check(move)
+            
 
             if self.is_capture(move):
                 mr.captured_piece = self.piece_at(move.to_square)  
