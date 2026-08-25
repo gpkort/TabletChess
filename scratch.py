@@ -36,8 +36,7 @@ def on_closing():
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 
-if __name__ == "__main__":
-    
+if __name__ == "__main__":    
     
     canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
     canvas.pack(fill="both", expand=True)

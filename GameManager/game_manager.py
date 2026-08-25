@@ -96,17 +96,22 @@ class ChessGameManager(ActivityManager):
             self._display_board.clear_display_cues()
             return        
         else:
-            piece:Piece | None = self._board.piece_at(square) 
-
-            if piece is not None and piece.color != self._board.turn:
-                return
-
-            if piece is not None and piece.color == self._board.turn:
-                if selected_sq is not None:
+            piece:Piece | None = self._board.piece_at(square)
+            if piece is None:
+                if selected_sq is None:
                     self._display_board.clear_display_cues()
-                self._board.set_selected_square(square)
+                    return 
             else:
-                self.make_move(Move(selected_sq, square))     #type:  ignore
+                if selected_sq is not None:
+                # if  piece.color != self._board.turn:
+                #     return
+                # else:                
+                #     if selected_sq is not None:
+                #         self._display_board.clear_display_cues()
+                #     self._board.set_selected_square(square)
+                #     return
+            
+            self.make_move(Move(selected_sq, square))     #type:  ignore
 
     def on_square_double_click(self, event:Event, data:dict[str, Any])->None:
         print(f"Square: {square_name(data["square"])}")
