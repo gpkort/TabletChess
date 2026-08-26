@@ -9,7 +9,7 @@ import tkinter as tk
 from GameManager import IMAGE_MAP, ChessGameManager, GameConfiguration
 from chess import Board, engine
 from Display import SmartChessBoard
-from Input import EventHandler, Event
+from Input import EventHandler, Event, ChessUI
 
 
 
@@ -19,30 +19,27 @@ PICKLE_DIR = "C:\\Users\\gkorthuis\\source\\MyChess"
 OPENING_BOOK = "komodo.bin"
 ENGINE_PATH:str = "stockfish-windows-x86-64-avx2.exe"
 CHUNK_SIZE = 200000
+SCREEN_WIDTH = 480
+SCREEN_HEIGHT = 600
+# SCREEN_WIDTH = 1024
+# SCREEN_HEIGHT = 768
 
 
 chess_engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(ENGINE_PATH)
-root = tk.Tk()
-root.title("Chess")
 
-
-def on_closing():
+def on_closing(ev:Event, data:dict[str, Any]):
         """
         Callback from close root frame
         """
         chess_engine.close()
-        root.destroy()
-
-root.protocol("WM_DELETE_WINDOW", on_closing)
-
+        exit(0)
 
 if __name__ == "__main__":    
-    
-    canvas:tk.Canvas = tk.Canvas(root, width=480, height=480)
-    canvas.pack(fill="both", expand=True)
-    cb:SmartChessBoard = SmartChessBoard(canvas, IMAGE_MAP, show_algebraic=True)
-    cgm:ChessGameManager = ChessGameManager(cb, chess_engine) 
-    cgm.load_game(GameConfiguration.fromJson("{}"))   
-    root.update() 
+    chess_ui:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, 440)    
+    cb:SmartChessBoard = SmartChessBoard(chess_ui.canvas, IMAGE_MAP, show_algebraic=True)
+    cgm:ChessGameManager = ChessGameManager(cb, chess_ui.widget_frame, chess_engine)
 
-    root.mainloop()
+    chess_ui.register_handler(EventHandler(Event.QUIT, on_closing))
+    chess_ui.start()
+     
+    

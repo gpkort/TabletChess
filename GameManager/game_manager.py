@@ -14,6 +14,8 @@ from chess import (Piece,
                    STARTING_FEN,
                    square_name,)
 
+import tkinter as tk
+from tkinter import ttk
 
 from Display import SmartChessBoard
 from GameManager import ActivityManager
@@ -79,7 +81,7 @@ class GameConfiguration:
         )
 
 class ChessGameManager(ActivityManager):
-    def __init__(self, chess_board: SmartChessBoard, chess_engine:engine.SimpleEngine ):
+    def __init__(self, chess_board: SmartChessBoard, widget_frame:ttk.LabelFrame, chess_engine:engine.SimpleEngine ):
         super().__init__(chess_board)
         self._board:SmartChessBoard = chess_board
         self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self.on_square_click))
@@ -87,31 +89,38 @@ class ChessGameManager(ActivityManager):
 
         self._engine:engine.SimpleEngine = chess_engine
         self.game_config:GameConfiguration | None = None
+        self.is_playing:bool = False
+
+        self._widget_frame:ttk.LabelFrame = widget_frame        
+        self._widgets:list[tk.Widget] = []
+        self._initialize_frame()
 
     def on_square_click(self, event:Event, data:dict[str, Any])->None:
         square:Square = data["square"]
         selected_sq:Square | None = data["selected_square"]
+        piece:Piece | None = self._board.piece_at(square)
         
         if selected_sq == square:
             self._display_board.clear_display_cues()
-            return        
+            return
+        
+        if piece is None:
+            self._display_board.clear_display_cues()
+            if selected_sq is not None:
+                self.make_move(Move(selected_sq, square)) 
         else:
-            piece:Piece | None = self._board.piece_at(square)
-            if piece is None:
-                if selected_sq is None:
+            if selected_sq is not None:
+                if  piece.color == self._board.turn:
                     self._display_board.clear_display_cues()
-                    return 
+                    self._board.set_selected_square(square)
+                else:
+                    self.make_move(Move(selected_sq, square))
             else:
-                if selected_sq is not None:
-                # if  piece.color != self._board.turn:
-                #     return
-                # else:                
-                #     if selected_sq is not None:
-                #         self._display_board.clear_display_cues()
-                #     self._board.set_selected_square(square)
-                #     return
-            
-            self.make_move(Move(selected_sq, square))     #type:  ignore
+                if  piece.color == self._board.turn:
+                    self._display_board.clear_display_cues()
+                    self._board.set_selected_square(square)
+                else:
+                    self._display_board.clear_display_cues()
 
     def on_square_double_click(self, event:Event, data:dict[str, Any])->None:
         print(f"Square: {square_name(data["square"])}")
@@ -122,8 +131,22 @@ class ChessGameManager(ActivityManager):
         else:
             print("Illegal")
 
-    def load_game(self, config:GameConfiguration):
+    def _load_game(self, config:GameConfiguration):
         self.game_config = config
         self._board.set_fen(self.game_config.fen)
+
+        # rnbqk1nr/pppp1ppp/8/4p1Q1/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2
+
+    def _initialize_frame(self)->None:
+        self._widgets = []
+        ng:tk.Widget = tk.Button(self._widget_frame, text="New Game", 
+                                command=lambda: self._load_game(GameConfiguration.fromJson("{}")))
+        ng.grid(row=1, column=1)
+        self._widgets.append(ng)
+        lg = tk.Button(self._widget_frame, 
+                                  text="Load Game", 
+                                  command=lambda: self._load_game(GameConfiguration.fromJson("{}")))
+        lg.grid(row=1, column=2)
+        self._widgets.append(lg)
 
     

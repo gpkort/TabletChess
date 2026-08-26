@@ -115,7 +115,7 @@ class SmartChessBoard(EventDispatcher):
             sid:int = self._canvas.find_withtag(square_name(s))[0]
             self._canvas.itemconfigure(sid, state=('normal' if show else 'hidden'))
         self._show_algebraic = show
-
+    
     # region public methods
     
     def set_moves_squares(self, move:Move|None)->None:
