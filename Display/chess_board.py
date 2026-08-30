@@ -115,6 +115,10 @@ class SmartChessBoard(EventDispatcher):
             sid:int = self._canvas.find_withtag(square_name(s))[0]
             self._canvas.itemconfigure(sid, state=('normal' if show else 'hidden'))
         self._show_algebraic = show
+
+    @property
+    def chess_board(self)->Board:
+        return self._board
     
     # region public methods
     
@@ -264,6 +268,7 @@ class SmartChessBoard(EventDispatcher):
         self._remove_piece_display(move.from_square)
         self._set_piece_display(move.to_square, self._board.piece_at(move.from_square))
         self._board.push(move)
+        self.set_moves_squares(move)
 
     def pop(self)->Move: 
         piece:Optional[Piece] = self._board.piece_at(self._board.peek().to_square)

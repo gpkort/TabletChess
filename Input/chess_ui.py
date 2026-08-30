@@ -26,28 +26,28 @@ class ChessUI(EventDispatcher):
         self._root.protocol("WM_DELETE_WINDOW", self._on_closing)
         
         # self._main_frame:ttk.Frame = ttk.Frame(self._root, relief="groove")
-        self._main_frame:ttk.Frame = ttk.Frame(self._root, padding=10)
+        self._main_frame:tk.Frame = tk.Frame(self._root)
         self._main_frame.pack(fill=tk.BOTH, expand=True)
         self._main_frame.rowconfigure(0, weight=1)
         self._main_frame.rowconfigure(1, weight=1)
         self._main_frame.rowconfigure(2, weight=1)
         self._main_frame.columnconfigure(0, weight=1)
 
-        self._canvas:tk.Canvas = tk.Canvas(self._main_frame, 
-                                           width=chess_board_size, height=chess_board_size, 
-                                           bd=2, relief="groove")
+        self._canvas:tk.Canvas = tk.Canvas(self._main_frame, width=chess_board_size, 
+                                           height=chess_board_size, relief="groove")
         self._canvas.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        # self._canvas.pack(fill="both", expand=True)
 
-        # self._text_box = scrolledtext.ScrolledText(self._main_frame, wrap=tk.WORD, width=40, height=40)
-        # self._text_box.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        # # self._text_box.pack(fill="both", expand=True)
-        # # text_area.config(state='disabled')
+        self._widget_frame:tk.Frame = tk.Frame(self._main_frame, relief="groove", 
+                                                       width=width, height=20)
+        self._widget_frame.grid(row=1, column=0)
 
-        self._widget_frame:ttk.LabelFrame = ttk.LabelFrame(self._main_frame, relief="groove", 
-                                               width=480, height=40)
-        self._widget_frame.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
-        # self._widget_frame.pack(fill="both", expand=True)
+        self._text_box = scrolledtext.ScrolledText(self._main_frame, wrap=tk.WORD, width=100, height=5)
+        self._text_box.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
+        # text_area.config(state='disabled')
+
+        
+
+        
         
 
     @property
@@ -55,7 +55,7 @@ class ChessUI(EventDispatcher):
         return self._canvas
 
     @property
-    def widget_frame(self)->ttk.LabelFrame:
+    def widget_frame(self)->tk.Frame:
         return self._widget_frame
 
     def start(self)->None:

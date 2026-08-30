@@ -21,6 +21,16 @@ from Display import SmartChessBoard
 from GameManager import ActivityManager
 from Input import Event, EventHandler
 
+# Move: from 12, to 28
+# Move: from 52, to 36
+# Move: from 1, to 18
+# Move: from 62, to 45
+# Move: from 11, to 27
+# Move: from 36, to 27
+# from: d1, to: d4
+# Move: from 3, to 27
+# Move: from 57, to 42
+
 
 class GameConfiguration:
     # class to hold data about specific, 
@@ -81,8 +91,10 @@ class GameConfiguration:
         )
 
 class ChessGameManager(ActivityManager):
-    def __init__(self, chess_board: SmartChessBoard, widget_frame:ttk.LabelFrame, chess_engine:engine.SimpleEngine ):
+    def __init__(self, chess_board: SmartChessBoard, widget_frame:tk.Frame, chess_engine:engine.SimpleEngine, *, single_player:bool=True ):
         super().__init__(chess_board)
+        self.single_player:bool=single_player
+
         self._board:SmartChessBoard = chess_board
         self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self.on_square_click))
         self._board.register_handler(EventHandler(Event.DOUBLE_CLICK, self.on_square_double_click))
@@ -91,7 +103,7 @@ class ChessGameManager(ActivityManager):
         self.game_config:GameConfiguration | None = None
         self.is_playing:bool = False
 
-        self._widget_frame:ttk.LabelFrame = widget_frame        
+        self._widget_frame:tk.Frame = widget_frame        
         self._widgets:list[tk.Widget] = []
         self._initialize_frame()
 
@@ -127,9 +139,11 @@ class ChessGameManager(ActivityManager):
 
     def make_move(self, move:Move):   
         if self._board.process_move(move):
-            print(str(self._board.get_board_status()))
-        else:
-            print("Illegal")
+            if self.single_player:
+                pr:engine.PlayResult = self._engine.play(board=self._board.chess_board, limit=engine.Limit(time=0.5))
+                if pr.move is not None:
+                    self._board.process_move(pr.move)
+        
 
     def _load_game(self, config:GameConfiguration):
         self.game_config = config
@@ -143,10 +157,5 @@ class ChessGameManager(ActivityManager):
                                 command=lambda: self._load_game(GameConfiguration.fromJson("{}")))
         ng.grid(row=1, column=1)
         self._widgets.append(ng)
-        lg = tk.Button(self._widget_frame, 
-                                  text="Load Game", 
-                                  command=lambda: self._load_game(GameConfiguration.fromJson("{}")))
-        lg.grid(row=1, column=2)
-        self._widgets.append(lg)
 
     

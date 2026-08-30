@@ -35,7 +35,7 @@ def on_closing(ev:Event, data:dict[str, Any]):
         exit(0)
 
 if __name__ == "__main__":    
-    chess_ui:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, 440)    
+    chess_ui:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH-40)    
     cb:SmartChessBoard = SmartChessBoard(chess_ui.canvas, IMAGE_MAP, show_algebraic=True)
     cgm:ChessGameManager = ChessGameManager(cb, chess_ui.widget_frame, chess_engine)
 
