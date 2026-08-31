@@ -100,9 +100,9 @@ class SmartChessBoard(EventDispatcher):
         self._square_to_piece_map:dict[Square, Optional[int]] = {}        
         for s in SQUARES:
             self._square_to_piece_map[s] = None
-        
+
         self._initialize()
-             
+
     @property
     def show_algebraic(self)->bool:
         """
@@ -119,9 +119,9 @@ class SmartChessBoard(EventDispatcher):
     @property
     def chess_board(self)->Board:
         return self._board
-    
+
     # region public methods
-    
+
     def set_moves_squares(self, move:Move|None)->None:
         """
          Changes background colors of where a move
@@ -157,13 +157,13 @@ class SmartChessBoard(EventDispatcher):
             self._remove_all_pieces_display()
 
     def get_selected_square(self)->Square|None:
-            """
-            Selected is the highlighted square
-    
-            Returns:
-                Square|None: highlighted square
-            """
-            return self._selected_square
+        """
+        Selected is the highlighted square
+
+        Returns:
+            Square|None: highlighted square
+        """
+        return self._selected_square
 
     def set_selected_square(self, sq:Square|None, set_legal:bool=True):
         if self._selected_square is not None:
@@ -178,9 +178,7 @@ class SmartChessBoard(EventDispatcher):
             self._selected_square = sq
 
             if set_legal:       
-                self._set_legal_square(sq) 
-
-            # TODO:Add attacker and attacked
+                self._set_legal_square(sq)
 
     def get_legal_squares(self, sq:Square)->list[Square]:
         return [m.to_square for m in self._board.legal_moves if m.from_square == sq]
@@ -289,10 +287,28 @@ class SmartChessBoard(EventDispatcher):
         self._set_all_pieces_display()
 
     def piece_at(self, square:Square)->Piece|None:
+        """
+        Wrapped chess.board peice_at
+        see https://python-chess.readthedocs.io/
+
+        Args:
+            square (Square): square to check
+
+        Returns:
+            Piece|None: piece at square
+        """
         return self._board.piece_at(square)
 
     @property
-    def turn(self):
+    def turn(self)->Color:
+        """
+        wrapped chess board turn
+        see https://python-chess.readthedocs.io/
+        
+
+        Returns:
+            chess.Color: current chess turn
+        """
         return self._board.turn
 
     #endregion
@@ -317,11 +333,14 @@ class SmartChessBoard(EventDispatcher):
                         fs:list[float] = self._get_square_bbox(sq)
                         ts:list[float] = self._get_square_bbox(square)
                         half:int = self._square_size // 2
-                        self._canvas.create_line(fs[0] + half, fs[1] + half, ts[2] - half, ts[3] - half, arrow=tk.LAST, width=3, fill="red")
-                        # sym:str = "a" + Piece.symbol(p)
-                        # self._board._remove_piece_at(square)
-                        # self._set_piece_image(sq, sym)
-    
+                        self._canvas.create_line(fs[0] + half, 
+                                                 fs[1] + half, 
+                                                 ts[2] - half, 
+                                                 ts[3] - half, 
+                                                 arrow=tk.LAST, 
+                                                 width=3, 
+                                                 fill="red")
+
     def _left_mouse_click(self, event:tk.Event)->None:
         """
         user makes left click
