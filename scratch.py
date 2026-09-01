@@ -8,7 +8,8 @@ from typing import Any
 # from io import StringIO
 # import tkinter as tk
 
-from chess import engine
+import chess
+from chess import engine, Board
 
 from GameManager import IMAGE_MAP, ChessGameManager
 from Display import SmartChessBoard
@@ -35,10 +36,14 @@ def on_closing(_:Event, __:dict[str, Any]):
     chess_engine.close()
     sys.exit(0)
 
-if __name__ == "__main__":    
-    cu:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH-40)
-    cb:SmartChessBoard = SmartChessBoard(cu.canvas, IMAGE_MAP, show_algebraic=True)
-    cgm:ChessGameManager = ChessGameManager(cb, cu, chess_engine)
+if __name__ == "__main__":
+    cb:Board = Board("rnbqkbnr/ppppp2p/6p1/5p2/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 0 1")
+    print(cb.is_attacked_by(chess.WHITE, chess.D3))
 
-    cu.register_handler(EventHandler(Event.QUIT, on_closing))
-    cu.start()
+
+    # cu:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH-40)
+    # cb:SmartChessBoard = SmartChessBoard(cu.canvas, IMAGE_MAP, show_algebraic=True)
+    # cgm:ChessGameManager = ChessGameManager(cb, cu, chess_engine, single_player=False)
+
+    # cu.register_handler(EventHandler(Event.QUIT, on_closing))
+    # cu.start()

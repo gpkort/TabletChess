@@ -33,6 +33,7 @@ CIRCLE_COLOR:str = "#083808"
 LEGAL:str = "#785DB7"
 
 LEGAL_TAG:str = "legal_tag"
+ATTACK_TAG:str = "attack_tag"
 
 class MOVE_ID(Enum):
     CAPTURE = 1
@@ -118,7 +119,7 @@ class SmartChessBoard(EventDispatcher):
 
     @property
     def chess_board(self)->Board:
-        return self._board
+        return self._board.copy()
 
     # region public methods
 
@@ -177,7 +178,8 @@ class SmartChessBoard(EventDispatcher):
             self._canvas.itemconfig(self._get_square_id(sq), outline=SELECTED_SQUARE_COLOR)
             self._selected_square = sq
 
-            if set_legal:       
+            if set_legal:
+                self._clear_legal_squares()      
                 self._set_legal_square(sq)
 
     def get_legal_squares(self, sq:Square)->list[Square]:
@@ -243,11 +245,63 @@ class SmartChessBoard(EventDispatcher):
                 
         return b_stat    
 
+    def get_protectors(self, square)->list[Tuple[Piece, Square]] | None:
+        """
+        gets protectors for a given square
+
+        
+        """
+        piece = self._board.piece_at(square)
+        
+        if piece is not None:
+            return self.get_pieces_move_to(piece.color, square)
+
+    def get_attackers(self, square)->list[Tuple[Piece, Square]] | None:
+            """
+            gets attackers for a given square
+            """
+            piece = self._board.piece_at(square)
+            if piece is not None:
+                color:Color = WHITE if piece.color == WHITE else BLACK
+                return self.get_pieces_move_to(color, square)
+           
+    def get_pieces_move_to(self, color:Color, square:Square)->list[Tuple[Piece, Square]]:
+        pieces:list[Tuple[Piece, Square]] = []
+
+        for a in list(self._board.attackers(color, square)):
+            p:Piece|None = self.piece_at(square)
+            if p is not None:
+                pieces.append((p, a))
+
+        return pieces      
+    
+
     # region endregion
 
     # region Wrapped chess.board methods
+    def attacked_by(self, color:Color, square:Square)->bool:
+        """
+                Wrapped chess.board attacked_by
+                see https://python-chess.readthedocs.io/
+        
+                Args:
+                    color: (Color) : color of piece to check
+                    square (Square): square to check
+        
+                Returns:
+                    bool: Whether square is attacked
+                """
+        return self.attacked_by(color, square)
 
     def set_piece_at(self, square:Square, piece:Piece|None, promoted:bool=False)->None:
+        """
+                Wrapped chess.board peice_at
+                see https://python-chess.readthedocs.io/
+        
+                Args:
+                    square (Square): square to check
+                    piece (Piece): Piece to set
+                """
         self._remove_piece_display(square)
         self._set_piece_display(square, piece)
 
@@ -263,10 +317,8 @@ class SmartChessBoard(EventDispatcher):
         self._set_all_pieces_display()
 
     def push(self, move: Move) -> None:
-        self._remove_piece_display(move.from_square)
-        self._set_piece_display(move.to_square, self._board.piece_at(move.from_square))
-        self._board.push(move)
-        self.set_moves_squares(move)
+        self._move_piece_display(move)
+        self._board.push(move)        
 
     def pop(self)->Move: 
         piece:Optional[Piece] = self._board.piece_at(self._board.peek().to_square)
@@ -317,6 +369,7 @@ class SmartChessBoard(EventDispatcher):
 
     def _clear_legal_squares(self):
         self._canvas.delete(LEGAL_TAG)
+        self._canvas.delete(ATTACK_TAG)
 
     def _set_legal_square(self, sq:Square):
         mp:Optional[Piece] = self._board.piece_at(sq)
@@ -329,14 +382,14 @@ class SmartChessBoard(EventDispatcher):
                                         width=0.0, fill=LEGAL, tags=LEGAL_TAG)
                 else:
                     if p.color != mp.color:
-                        print(f"from: {square_name(sq)}, to: {square_name(square)}")
                         fs:list[float] = self._get_square_bbox(sq)
                         ts:list[float] = self._get_square_bbox(square)
                         half:int = self._square_size // 2
                         self._canvas.create_line(fs[0] + half, 
                                                  fs[1] + half, 
                                                  ts[2] - half, 
-                                                 ts[3] - half, 
+                                                 ts[3] - half,
+                                                 tags=ATTACK_TAG,
                                                  arrow=tk.LAST, 
                                                  width=3, 
                                                  fill="red")
@@ -391,6 +444,12 @@ class SmartChessBoard(EventDispatcher):
         if pid is not None:
             self._square_to_piece_map[square] = None
             self._canvas.delete(pid)
+
+    def _move_piece_display(self, move:Move)->None:
+        self._remove_piece_display(move.from_square)
+        self._remove_piece_display(move.to_square)
+        self._set_piece_display(move.to_square, self._board.piece_at(move.from_square))
+        self.set_moves_squares(move)
 
     def _set_piece_display(self, square:Square, piece:Piece|None)->None:
         if piece is not None:

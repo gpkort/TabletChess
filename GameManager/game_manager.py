@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 import uuid
 from datetime import datetime
 import json
@@ -20,16 +20,6 @@ from chess import (Piece,
 from Display import SmartChessBoard
 from GameManager import ActivityManager
 from Input import Event, EventHandler, ChessUI
-
-# Move: from 12, to 28
-# Move: from 52, to 36
-# Move: from 1, to 18
-# Move: from 62, to 45
-# Move: from 11, to 27
-# Move: from 36, to 27
-# from: d1, to: d4
-# Move: from 3, to 27
-# Move: from 57, to 42
 
 
 class GameConfiguration:
@@ -117,19 +107,22 @@ class ChessGameManager(ActivityManager):
     def __init__(self,
                  chess_board: SmartChessBoard,
                  chess_ui:ChessUI,
-                 chess_engine:engine.SimpleEngine, *, single_player:bool=True ):
+                 chess_engine:engine.SimpleEngine, *, 
+                 single_player:bool=True, coaching:bool=True ):
 
         super().__init__(chess_board)
         self.single_player:bool=single_player
+        self._coaching:bool = coaching        
 
         self._board:SmartChessBoard = chess_board
         self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self._on_square_click))
         self._board.register_handler(EventHandler(Event.DOUBLE_CLICK, self._on_square_double_click))
 
         self._engine:engine.SimpleEngine = chess_engine
-        self.game_config:GameConfiguration | None = None
+        self.game_config:GameConfiguration | None = GameConfiguration(player_1_name="Greg")
         self.is_playing:bool = False
-
+        self._pending_square:Square|None = None
+        
         self._chess_ui:ChessUI = chess_ui
         self._widgets:list[tk.Widget] = []
         self._initialize_frame()
@@ -170,6 +163,14 @@ class ChessGameManager(ActivityManager):
 #endregion
 
     def _make_move(self, move:Move):
+        if self._coaching:
+            if self._pending_square is None:
+                self._pending_square = move.to_square
+                print(self._analyze(move))
+                return
+            else:
+                self._pending_square = None
+
         if self._board.process_move(move):
             info:engine.InfoDict = self._engine.analyse(self._board.chess_board,
                                                     engine.Limit(time=0.1))
@@ -184,7 +185,6 @@ class ChessGameManager(ActivityManager):
                     self._board.process_move(pr.move)
                     # self._chess_ui.append_text()
 
-
     def _load_game(self, config:GameConfiguration):
         self.game_config = config
         self._board.set_fen(self.game_config.fen)
@@ -197,5 +197,31 @@ class ChessGameManager(ActivityManager):
                                 command=lambda: self._load_game(GameConfiguration.fromJson("{}")))
         ng.grid(row=1, column=1)
         self._widgets.append(ng)
+
+    def _analyze(self, move:Move)->str:
+        protect_list:list[Tuple[Piece, Square]] | None = self._board.get_protectors(move.to_square)
+        attack_list:list[Tuple[Piece, Square]] | None = self._board.get_attackers(move.to_square)
+        protectors:list[Tuple[str, str]] = []
+        attackers:list[Tuple[str, str]] = []
+
+        if protect_list is not None:
+            protectors:list[Tuple[str, str]] = [(p.symbol(), square_name(s)) for p, s in protect_list]
+
+        if attack_list is not None:
+            attackers:list[Tuple[str, str]] = [(p.symbol(), square_name(s)) for p, s in attack_list]
+
+
+        return ""
+
+    """
+    who can you capture
+    show all if you're going to be attacked, if you have someone covering your back.
+    Are you pinned, can you pin or skewer someone
+    who controls the middle
+    show move anaysis
+    mate in one and maybe two
+    load game
+    save game
+    """
 
     
