@@ -11,7 +11,7 @@ from typing import Any
 import chess
 from chess import engine, Board
 
-from GameManager import IMAGE_MAP, ChessGameManager
+from GameManager import IMAGE_MAP, ChessGameManager, ChessCoach
 from Display import SmartChessBoard
 from Input import EventHandler, Event, ChessUI
 
@@ -27,18 +27,18 @@ SCREEN_HEIGHT = 600
 # SCREEN_HEIGHT = 768
 
 
-chess_engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(ENGINE_PATH)
+# chess_engine:engine.SimpleEngine = engine.SimpleEngine.popen_uci(ENGINE_PATH)
 
 def on_closing(_:Event, __:dict[str, Any]):
     """
     Callback from close root frame
     """
-    chess_engine.close()
+    # chess_engine.close()
     sys.exit(0)
 
 if __name__ == "__main__":
-    cb:Board = Board("rnbqkbnr/ppppp2p/6p1/5p2/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 0 1")
-    print(cb.is_attacked_by(chess.WHITE, chess.D3))
+    cb:Board = Board("3qkbnr/pp2pp1p/6p1/3p4/B7/7P/PPPPPPP1/RN1QKBNR w - - 0 1")
+    print(ChessCoach.get_legal_moves(cb.copy(), chess.BLACK))
 
 
     # cu:ChessUI = ChessUI(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH-40)
