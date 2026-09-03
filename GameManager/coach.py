@@ -1,5 +1,12 @@
 from typing import Tuple, Optional
+from enum import Enum
 import chess
+
+class CheckStatus(Enum):
+    DEADEND = 0
+    CHECK = 1
+    CHECKMATE = 2
+    UNKNOWN = 99
 
 def gives_checkmate(board:chess.Board, move: chess.Move) -> bool:
     """
@@ -17,27 +24,41 @@ def gives_checkmate(board:chess.Board, move: chess.Move) -> bool:
 def check_mating(board:chess.Board,
                  color:chess.Color,
                  move:chess.Move,
-                 sol:list[chess.Move]):
+                 solution_stack:list[chess.Move],
+                 max_tries:int, current_tries:int)->bool:
+    
+    if gives_checkmate(board, move):
+        solution_stack.append(move)
+        return True
+    
+    if board.gives_check(move):
+        if current_tries == max_tries:
+         return False
+        current_tries += 1
 
-    board.push(move)
-    if board.is_checkmate():
-        sol.append(move)
-        return
+        solution_stack.append(move)
+        board.push(move)
 
-    if board.is_check():
-        sol.append(move)
         #only moves that will get out of check
         tmoves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)
 
         for tm in tmoves:
+            solution_stack.append(move)
             board.push(tm)
             mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
             omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or gives_checkmate(board, m)]
+            
+            for om in omoves:                
+                if check_mating(board, color, om, solution_stack, max_tries, current_tries):
+                    return True
+                
 
-            for om in omoves:
-                check_mating(board, color, om, sol)
-    board.pop()
+            board.pop()
+            solution_stack.pop()
+        board.pop
+        solution_stack.pop()
 
+    return False
 
 class ChessCoach:
     @staticmethod   
@@ -56,17 +77,15 @@ class ChessCoach:
 
     @staticmethod
     def get_protectors(board:chess.Board, 
-                       square:chess.Square)->list[Tuple[chess.Piece, chess.Square]] | None:
+                       square:chess.Square)->dict[chess.Square, chess.Piece]:
         """
-        gets protectors for a given square
-
-        
+        gets protectors for a given square        
         """
-        attack_map:dict[chess.Square, chess.Piece] = {}
         piece = board.piece_at(square)
         
         if piece is not None:
-            attack_map =  ChessCoach.get_pieces_attacking(board, piece.color, square)   
+            return ChessCoach.get_pieces_attacking(board, piece.color, square)  
+        return {} 
 
     @staticmethod
     def get_attackers(board:chess.Board, 
@@ -75,13 +94,12 @@ class ChessCoach:
         gets attackers for a given square
         """
 
-        attack_map:dict[chess.Square, chess.Piece] = {}
         piece = board.piece_at(square)
         if piece is not None:
             color:chess.Color = chess.BLACK if piece.color else chess.WHITE
-            attack_map = ChessCoach.get_pieces_attacking(board, color, square)
+            return ChessCoach.get_pieces_attacking(board, color, square)
 
-        return attack_map
+        return {}
 
     @staticmethod
     def get_potential_captures(board:chess.Board, move:chess.Move, piece:chess.Piece)->dict[chess.Square, chess.Piece]:
@@ -145,23 +163,33 @@ class ChessCoach:
         return chk
    
     @staticmethod
-    def mate_in_n(board:chess.Board, 
-                    color:chess.Color, 
-                    moves:Optional[list[chess.Move]],
-                    *,
-                    solution:list[chess.Move]=[])->list[chess.Move]:
+    def mate_in_n(board:chess.Board, color:chess.Color, max_tries:int=10)->list[list[chess.Move]]:
 
         def turn_str(c:bool)->str:
             return "White" if c else "Black"
 
+        # board = board.copy()
         if board.turn != color:
             raise ValueError(f"Color must match board's turn. color={turn_str(color)}, turn={turn_str( board.turn)}")
         if board.is_checkmate():
             raise ValueError(f"{turn_str(not color)} is already in checkmate.")
-                
-        
-        return []
 
+        ret:list[list[chess.Move]] = []
+
+        c_moves:list[chess.Move] = [m for m in ChessCoach.get_legal_moves(board, color) 
+                                        if board.gives_check(m) or gives_checkmate(board, m)]
+        for lm in c_moves:
+            stack:list[chess.Move] = []
+            bd:chess.Board = board.copy()
+
+            try:
+                if check_mating(bd, color, lm, stack, max_tries, 0):
+                    ret.append(stack)
+            except AssertionError:
+                print(f"start: {board.fen}")
+                print(f"fen: {bd.fen}, stack: {stack}")
+        
+        return ret
         
 
 """

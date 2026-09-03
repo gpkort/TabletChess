@@ -213,15 +213,6 @@ class ChessGameManager(ActivityManager):
 
         return ""
 
-    """
-    who can you capture
-    show all if you're going to be attacked, if you have someone covering your back.
-    Are you pinned, can you pin or skewer someone
-    who controls the middle
-    show move anaysis
-    mate in one and maybe two
-    load game
-    save game
-    """
+   
 
     
