@@ -2,39 +2,42 @@ from typing import Tuple, Optional
 import chess
 
 def gives_checkmate(board:chess.Board, move: chess.Move) -> bool:
-        """
-        Probes if the given move would put the opponent in checkmate. The move
-        must be at least pseudo-legal.
-        chess documentation says this exists in Board class but it does not
-        """
-        board.push(move)
-        try:
-            return board.is_checkmate()
-        finally:
-            board.pop()
-    
+    """
+    Probes if the given move would put the opponent in checkmate. The move
+    must be at least pseudo-legal.
+    chess documentation says this exists in Board class but it does not
+    """
+    board.push(move)
+    try:
+        return board.is_checkmate()
+    finally:
+        board.pop()
 
-def check_mating(board:chess.Board, 
-                 color:chess.Color, 
+
+def check_mating(board:chess.Board,
+                 color:chess.Color,
+                 move:chess.Move,
                  sol:list[chess.Move]):
 
-    our_moves  = ChessCoach.get_legal_moves(board, color)
-    
-    for m in our_moves:
-        board.push(m)
-        if board.is_checkmate():
-            sol.append(m)
-            return
+    board.push(move)
+    if board.is_checkmate():
+        sol.append(move)
+        return
 
-        if board.is_check():
-            sol.append(m)
-            their_moves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)   #only moves that will get out of check
+    if board.is_check():
+        sol.append(move)
+        #only moves that will get out of check
+        tmoves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)
 
-            for tm in their_moves:
-                board.push(tm)
-                check_mating(board, color, sol)
-        board.pop()
-    
+        for tm in tmoves:
+            board.push(tm)
+            mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
+            omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or gives_checkmate(board, m)]
+
+            for om in omoves:
+                check_mating(board, color, om, sol)
+    board.pop()
+
 
 class ChessCoach:
     @staticmethod   
