@@ -26,7 +26,13 @@ def check_mating(board:chess.Board,
                  move:chess.Move,
                  solution_stack:list[chess.Move],
                  max_tries:int, current_tries:int)->bool:
-    
+    try:
+                    print("trying")
+                    if check_mating(bd, color, lm, stack, max_tries, 0):
+                        ret.append(stack)
+                except AssertionError:
+                    print(f"start: {board.fen}")
+                    print(f"fen: {bd.fen}, stack: {stack}")
     if gives_checkmate(board, move):
         solution_stack.append(move)
         return True
@@ -37,24 +43,28 @@ def check_mating(board:chess.Board,
         current_tries += 1
 
         solution_stack.append(move)
-        board.push(move)
+        try:
+            board.push(move)
+        except AssertionError as ae:
+            raise ae
 
         #only moves that will get out of check
         tmoves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)
 
         for tm in tmoves:
-            solution_stack.append(move)
-            board.push(tm)
-            mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
-            omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or gives_checkmate(board, m)]
-            
-            for om in omoves:                
-                if check_mating(board, color, om, solution_stack, max_tries, current_tries):
-                    return True
+            if board.turn == (not color):
+                solution_stack.append(tm)
+                board.push(tm)
+                mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
+                omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or gives_checkmate(board, m)]
                 
+                for om in omoves:                
+                    if check_mating(board, color, om, solution_stack, max_tries, current_tries):
+                        return True
+                    
 
-            board.pop()
-            solution_stack.pop()
+                board.pop()
+                solution_stack.pop()
         board.pop
         solution_stack.pop()
 
@@ -182,12 +192,8 @@ class ChessCoach:
             stack:list[chess.Move] = []
             bd:chess.Board = board.copy()
 
-            try:
-                if check_mating(bd, color, lm, stack, max_tries, 0):
-                    ret.append(stack)
-            except AssertionError:
-                print(f"start: {board.fen}")
-                print(f"fen: {bd.fen}, stack: {stack}")
+            if check_mating(bd, color, lm, stack, max_tries, 0):
+                ret.append(stack)
         
         return ret
         
