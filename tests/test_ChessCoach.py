@@ -92,12 +92,18 @@ class TestChessCoach:
             #1R6/5p2/1R5k/Q7/8/8/8/Q7 b - - 0 1
 
     def test_simple_mate_in_one(self):
-       board:chess.Board = chess.Board("1R6/5p2/7k/QR6/8/8/8/K7 w - - 0 1")
+       board:chess.Board = chess.Board("1rb5/4r3/3p1npb/3kp1P1/1P3P1P/5nR1/2Q1BK2/bN4NR w - - 3 61")
                                        #'7R/5pk1/8/QR6/8/8/8/K7 w - - 2 2'
-       solutions:list[list[chess.Move]] = ChessCoach.mate_in_n(board, chess.WHITE) 
+                                       # 1rb5/4r3/3p1npb/3kp1P1/1P3P1P/5nR1/2Q1BK2/bN4NR w - - 3 61
+       solutions:list[list[chess.Move]] = ChessCoach.mate_in_n(board, chess.WHITE, 1) 
 
-       assert len(solutions) == 0
-       print(solutions)    
+       assert len(solutions) == 1
+
+    def test_board_copy(self):
+          bd:chess.Board = chess.Board()
+          bd1:chess.Board = ChessCoach.get_board(bd)
+          assert id(bd) != id(bd1)
+
        
 
 

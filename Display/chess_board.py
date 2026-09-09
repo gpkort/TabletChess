@@ -8,15 +8,12 @@ from enum import Enum
 import tkinter as tk
 from PIL import ImageTk
 
-from chess import (STARTING_FEN, Square, 
-                   square,
-                   SQUARES,
-                   square_rank,
-                   square_file, KING,
-                   square_name, BLACK,
-                   Piece, WHITE,
-                   Board, Color,
-                   Move, Outcome)
+from chess import (STARTING_FEN, Square, square, 
+                   SQUARES, square_rank, square_file, 
+                   KING, square_name, BLACK,
+                   Piece, WHITE, Board, 
+                   Color, Move, Outcome,
+                   SquareSet)
 
 from Input import EventDispatcher, Event
 from . import load_pieces, PIECE_LETTERS
@@ -279,6 +276,50 @@ class SmartChessBoard(EventDispatcher):
     # region endregion
 
     # region Wrapped chess.board methods
+
+    def king(self, color:Color)->Square | None:
+        """
+        wrap BaseBoard.king
+        see https://python-chess.readthedocs.io/
+
+        Finds the unique king square of the given side. Returns None if there is no king or multiple kings of that color.
+
+        In variants with king promotions, only non-promoted kings are considered.       
+        """
+        
+        return self._board.king(color)
+
+    def pin(self, color:Color, square:Square)->SquareSet:
+            """
+            wrap BaseBoard.is_pinned
+            see https://python-chess.readthedocs.io/
+    
+            Detects an absolute pin (and its direction) of the given square to the king of the given color.      
+            """
+    
+            return self._board.pin(color, square)
+
+    def is_pinned(self, color:Color, square:Square)->bool:
+        """
+        wrap BaseBoard.is_pinned
+        see https://python-chess.readthedocs.io/
+
+        Detects if the given square is pinned to the king of the given color.        
+        """
+
+        return self._board.is_pinned(color, square)
+
+    def set_board_fen(self, fen:str)->None:
+        """
+        wrap board.set_board_fen
+        see https://python-chess.readthedocs.io/
+
+        Parses fen and sets up the board, where fen is the board part of a FEN.
+
+        Board also clears the move stack.
+        """
+        self._board.set_board_fen(fen)
+
     def attacked_by(self, color:Color, square:Square)->bool:
         """
                 Wrapped chess.board attacked_by

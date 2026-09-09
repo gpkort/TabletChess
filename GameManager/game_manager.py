@@ -15,11 +15,13 @@ from chess import (Piece,
                    BLACK,
                    STARTING_FEN,
                    square_name,
+                   piece_name                  
                    )
 
 from Display import SmartChessBoard
 from GameManager import ActivityManager
 from Input import Event, EventHandler, ChessUI
+from .coach import ChessCoach
 
 
 class GameConfiguration:
@@ -107,8 +109,10 @@ class ChessGameManager(ActivityManager):
     def __init__(self,
                  chess_board: SmartChessBoard,
                  chess_ui:ChessUI,
-                 chess_engine:engine.SimpleEngine, *, 
-                 single_player:bool=True, coaching:bool=True ):
+                 chess_engine:engine.SimpleEngine, *,
+                 fen:str = "",
+                 single_player:bool=True, 
+                 coaching:bool=True ):
 
         super().__init__(chess_board)
         self.single_player:bool=single_player
@@ -117,6 +121,8 @@ class ChessGameManager(ActivityManager):
         self._board:SmartChessBoard = chess_board
         self._board.register_handler(EventHandler(Event.SQUARE_CLICK, self._on_square_click))
         self._board.register_handler(EventHandler(Event.DOUBLE_CLICK, self._on_square_double_click))
+        if fen != "":
+            self._board.set_board_fen(fen)
 
         self._engine:engine.SimpleEngine = chess_engine
         self.game_config:GameConfiguration | None = GameConfiguration(player_1_name="Greg")
@@ -199,10 +205,16 @@ class ChessGameManager(ActivityManager):
         self._widgets.append(ng)
 
     def _analyze(self, move:Move)->str:
+        piece:Piece | None = self._board.piece_at(move.to_square)
+        if piece is None:
+            return f"Could not Analyze move: {move.uci()}"
+
+        p_name:str = piece_name(piece.piece_type)
         protect_list:list[Tuple[Piece, Square]] | None = self._board.get_protectors(move.to_square)
         attack_list:list[Tuple[Piece, Square]] | None = self._board.get_attackers(move.to_square)
         protectors:list[Tuple[str, str]] = []
         attackers:list[Tuple[str, str]] = []
+        mate_in:list[list[Move]] = ChessCoach.mate_in_n(self._board.chess_board, self._board.turn)
 
         if protect_list is not None:
             protectors:list[Tuple[str, str]] = [(p.symbol(), square_name(s)) for p, s in protect_list]
@@ -210,8 +222,29 @@ class ChessGameManager(ActivityManager):
         if attack_list is not None:
             attackers:list[Tuple[str, str]] = [(p.symbol(), square_name(s)) for p, s in attack_list]
 
+        result:str = f"Move: {move.uci()}\n"
+        result += f"Piece {p_name} at {square_name(move.to_square)}"
+        result += f"Protected By: {protectors} \n"
+        result += f"Attacked By: {attackers} \n"
+
+        if len(mate_in) > 0:
+            c:str = "White" if self._board.turn else "Black"
+            result += f"{c} can mate in {min([len(arr) for arr in mate_in])} moves!/n"
+
+
+        return result
+
+    def _pin_to_k_string(self, piece:Piece, square:Square)->str:
+        ks:Square | None = self._board.king(self._board.turn)
+
+        if ks is not None and self._board.is_pinned(self._board.turn, square):
+            pn:str = piece_name(piece.piece_type)
+            sn:str = square_name(square)
+            kstr:str = square_name(ks)
+            return f"{pn} at {sn} is pinned to the king at {kstr}.\n"
 
         return ""
+
 
    
 
