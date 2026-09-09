@@ -26,56 +26,68 @@ def check_mating(board:chess.Board,
                  move:chess.Move,
                  solution_stack:list[chess.Move],
                  max_tries:int, current_tries:int)->bool:
-    try:
-                    print("trying")
-                    if check_mating(bd, color, lm, stack, max_tries, 0):
-                        ret.append(stack)
-                except AssertionError:
-                    print(f"start: {board.fen}")
-                    print(f"fen: {bd.fen}, stack: {stack}")
-    if gives_checkmate(board, move):
-        solution_stack.append(move)
-        return True
     
-    if board.gives_check(move):
-        if current_tries == max_tries:
-         return False
-        current_tries += 1
-
-        solution_stack.append(move)
-        try:
-            board.push(move)
-        except AssertionError as ae:
-            raise ae
-
-        #only moves that will get out of check
-        tmoves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)
-
-        for tm in tmoves:
-            if board.turn == (not color):
-                solution_stack.append(tm)
-                board.push(tm)
-                mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
-                omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or gives_checkmate(board, m)]
+    print(f"Current: {current_tries}, max: {max_tries}")
+    if current_tries == max_tries:
+        return False
                 
-                for om in omoves:                
-                    if check_mating(board, color, om, solution_stack, max_tries, current_tries):
-                        return True
-                    
+    try:
+        if gives_checkmate(board, move):
+            solution_stack.append(move)
+            return True
+    except AssertionError as ae:
+        print(f"lan 35 - fen: {board.fen()}")
+        print(f"Try: {current_tries}")
+        print([m.uci() for m in solution_stack])
+        raise ae
 
-                board.pop()
-                solution_stack.pop()
-        board.pop
-        solution_stack.pop()
+    current_tries += 1
+    try:
+        if board.gives_check(move):
+            solution_stack.append(move)
 
+            try:
+                board.push(move)
+            except AssertionError as ae:
+                print(f"lan 35 - fen: {board.fen()}")
+                print(f"Try: {current_tries}")
+                print([m.uci() for m in solution_stack])
+                raise ae
+            #only moves that will get out of check
+            tmoves:list[chess.Move] = ChessCoach.get_legal_moves(board, not color)
+
+            for tm in tmoves:
+                if board.turn == (not color):
+                    solution_stack.append(tm)
+                    board.push(tm)
+                    mvs:list[chess.Move] = ChessCoach.get_legal_moves(board, color)
+                    omoves:list[chess.Move] = [m for m in mvs if board.gives_check(m) or
+                                                                gives_checkmate(board, m)]
+
+                    for om in omoves:
+                        if check_mating(board, color, om, solution_stack, max_tries, current_tries):
+                            return True
+
+                    board.pop()
+                    solution_stack.pop()
+            board.pop()
+            solution_stack.pop()
+    except AssertionError as ae:
+        print(f"lan 35 - fen: {board.fen()}")
+        print(f"Try: {current_tries}")
+        print([m.uci() for m in solution_stack])
+        raise ae
     return False
 
 class ChessCoach:
-    @staticmethod   
-    def get_pieces_attacking(board:chess.Board, 
-                        color:chess.Color, 
+    """
+    Non chess engine chess coach
+    """
+    @staticmethod
+    def get_pieces_attacking(board:chess.Board,
+                        color:chess.Color,
                         square:chess.Square)->dict[chess.Square, chess.Piece]:
-        
+
         attack_map:dict[chess.Square, chess.Piece] = {}
 
         for s in list(board.attackers(color, square)):
@@ -92,10 +104,10 @@ class ChessCoach:
         gets protectors for a given square        
         """
         piece = board.piece_at(square)
-        
+
         if piece is not None:
             return ChessCoach.get_pieces_attacking(board, piece.color, square)  
-        return {} 
+        return {}
 
     @staticmethod
     def get_attackers(board:chess.Board, 
